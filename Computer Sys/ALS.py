@@ -49,6 +49,7 @@ ratings.cache()
 
 sc.setCheckpointDir('checkpoint/')
 ALS.checkpointInterval = 2
+
 model = ALS.train(ratings, rank, num_iterations, seed=1234)
 
 # Evaluate the model on training data
@@ -77,6 +78,7 @@ predictions2 = model.predictAll(testdata2).map(lambda r: ((r[0], r[1]), r[2]))
 ratesAndPreds2 = test.map(lambda r: ((r[0], r[1]), r[2])).join(predictions2)
 MSE2 = ratesAndPreds2.map(lambda r: (r[1][0] - r[1][1])**2).mean()
 print("Mean Squared Error = " + str(MSE2))
+
 '''
 print(model.productFeatures().count())
 
@@ -120,8 +122,8 @@ try:
     writer.writerow(('userId','RecommendedItemIds'))
     for user in clean_users.toLocalIterator():
         top5_test = model.recommendProducts(user, 5)
+        #for top in top5_test:
+        #    print(top)
         writer.writerow((user, '{0} {1} {2} {3} {4}'.format(top5_test[0].product, top5_test[1].product, top5_test[2].product, top5_test[3].product, top5_test[4].product)))
-        for top in top5_test:
-            print(top)
 finally:
     f.close()
