@@ -1,5 +1,6 @@
 from pyspark import SparkContext
 from pyspark.mllib.recommendation import ALS, MatrixFactorizationModel, Rating
+import csv
 #from pyspark.ml.evaluation import RegressionEvaluator
 
 sc = SparkContext.getOrCreate()
@@ -91,7 +92,7 @@ print(model.userFeatures().count())
 
 #for user X, finds N products
 top5 = model.recommendProducts(7393, 5)
-
+top5[0].rating
 #top N for every user
 #top5 = model.recommendProductsForUsers(5)
 
@@ -111,7 +112,16 @@ clean_users = test_users.filter(lambda x: x != test_header).map(lambda y: int(y)
 clean_users.count()
 clean_users.take(10)
 
-for user in clean_users.toLocalIterator():
-    top5_test = model.recommendProducts(user, 5)
-    for top in top5_test:
-        print(top)
+clean_users.cache()
+
+f = open('submission.csv', 'wt')
+try:
+    writer = csv.writer(f)
+    writer.writerow(('userId','RecommendedItemIds'))
+    for user in clean_users.toLocalIterator():
+        top5_test = model.recommendProducts(user, 5)
+        writer.writerow((user, '{0} {1} {2} {3} {4}'.format(top5_test[0].rating, top5_test[1].rating, top5_test[2].rating, top5_test[3].rating, top5_test[4].rating)))
+        for top in top5_test:
+            print(top)
+finally:
+    f.close()
