@@ -92,7 +92,7 @@ print(model.userFeatures().count())
 
 #for user X, finds N products
 top5 = model.recommendProducts(7393, 5)
-top5[0].rating
+top5[0].product
 #top N for every user
 #top5 = model.recommendProductsForUsers(5)
 
@@ -120,7 +120,7 @@ try:
     writer.writerow(('userId','RecommendedItemIds'))
     for user in clean_users.toLocalIterator():
         top5_test = model.recommendProducts(user, 5)
-        writer.writerow((user, '{0} {1} {2} {3} {4}'.format(top5_test[0].rating, top5_test[1].rating, top5_test[2].rating, top5_test[3].rating, top5_test[4].rating)))
+        writer.writerow((user, '{0} {1} {2} {3} {4}'.format(top5_test[0].product, top5_test[1].product, top5_test[2].product, top5_test[3].product, top5_test[4].product)))
         for top in top5_test:
             print(top)
 finally:
