@@ -47,11 +47,11 @@ try:
             if itm1[0]!=itm2[0]:
                 dict[itm2[0]]= countSameFeatures(itm1,itm2)
         dict=sorted(dict.items(),key=operator.itemgetter(1),reverse=True)
-        i=1+1
+        i=i+1
         print(i/36797)
 
 
-        for (id, weight) in dict:
+        for (id, weight) in dict[:5]:
             writer.writerow((itm1[0], id, weight))
 finally:
     f.close()
