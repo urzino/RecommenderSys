@@ -36,16 +36,19 @@ item_features.take(10)
 
 
 f = open('KNN_ITEMS.csv', 'wt')
+i=0;
 try:
     writer = csv.writer(f)
     writer.writerow(('itemId','neighborId','weight'))
-    for itm1 in item_features.take(10):
+    for itm1 in item_features.toLocalIterator():
         dict={}
-        for itm2 in item_features.take(15):
+        for itm2 in item_features.toLocalIterator():
 
             if itm1[0]!=itm2[0]:
                 dict[itm2[0]]= countSameFeatures(itm1,itm2)
         dict=sorted(dict.items(),key=operator.itemgetter(1),reverse=True)
+        i=1+1
+        print(i/36797)
 
 
         for (id, weight) in dict:
