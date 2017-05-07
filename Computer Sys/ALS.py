@@ -45,6 +45,9 @@ for sample in samples:
 ratings.cache()
 
 #ALS
+
+sc.setCheckpointDir('checkpoint/')
+ALS.checkpointInterval = 2
 model = ALS.train(ratings, rank, num_iterations, seed=1234)
 
 # Evaluate the model on training data
