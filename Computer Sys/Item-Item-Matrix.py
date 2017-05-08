@@ -1,11 +1,12 @@
 from pyspark import SparkContext
 import csv
 from pyspark.mllib.linalg import Matrix, Matrices
-
+from scipy import linalg
+import numpy as np
 sc = SparkContext.getOrCreate()
 
-sm = Matrices.sparse(3, 2, [0, 0, 2], [0, 2, 1], [9, 6, 8])
-print(sm)
+
+
 
 train_rdd = sc.textFile("data/train.csv")
 icm_rdd = sc.textFile("data/icm.csv")
@@ -18,10 +19,23 @@ print(train_rdd.count())
 print(icm_header)
 print(icm_rdd.count())
 
-train_clean_data = train_rdd.filter(lambda x: x != train_header).map(lambda line: line.split(','))
-icm_clean_data = icm_rdd.filter(lambda x: x != icm_header).map(lambda line: line.split(','))
+train_clean_data = train_rdd.filter(lambda x: x != train_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
+icm_clean_data = icm_rdd.filter(lambda x: x != icm_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1])))
+
+user_array = train_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=False)
+item_array= icm_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=False)
+features_array = icm_clean_data.map( lambda x: int(x[1])).sortBy(lambda x: x, ascending=False)
+
+UxI_weighted=np.zeros(shape=(user_array.take(1)[0],item_array.take(1)[0]))
+UxI_one=np.zeros(shape=(user_array.take(1)[0],item_array.take(1)[0]))
+IxF=np.zeros(shape=(item_array.take(1)[0],features_array.take(1)[0]))
 
 
+for user in train_clean_data.toLocalIterator():
+    UxI_weighted[user[0]][user[1]]=user[2]
+    UxI_weighted[user[0]][user[1]]=1
+
+UxF=np.dot(UxI_weighted,IxF)
 train_clean_data.take(10)
 icm_clean_data.take(10)
 
