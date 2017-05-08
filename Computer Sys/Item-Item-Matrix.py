@@ -34,39 +34,46 @@ IxF=np.zeros(shape=(I_dimension,F_dimension))
 for item in icm_clean_data.toLocalIterator():
     IxF[item[0]][item[1]] = 1
 
-for user in useful_user_array.toLocalIterator():
+f = open('submission2.csv', 'wt')
+try:
+    writer = csv.writer(f)
+    writer.writerow(('userId','RecommendedItemIds'))
+    i = 0
+    for user in useful_user_array.toLocalIterator():
 
+        UxI_weighted=np.zeros(shape=(1,I_dimension))
+        UxI_one=np.zeros(shape=(1,I_dimension))
 
-    UxI_weighted=np.zeros(shape=(1,I_dimension))
-    UxI_one=np.zeros(shape=(1,I_dimension))
+        for rate in train_clean_data.toLocalIterator():
+            if rate[0]==user:
+                UxI_weighted[0][rate[1]]=rate[2]
+                UxI_one[0][rate[1]]=1
 
+        UxF=np.dot(UxI_weighted,IxF)
+        UxF_counter=np.dot(UxI_one,IxF)
+        for col in range(F_dimension):
+            if UxF_counter[0][col]!=0:
+                UxF[0][col]=UxF[0][col]/UxF_counter[0][col]
 
-    for rate in train_clean_data.toLocalIterator():
-        if rate[0]==user:
-            UxI_weighted[0][rate[1]]=rate[2]
-            UxI_one[0][rate[1]]=1
+        UxI_pred = np.dot(UxF, np.transpose(IxF))
+        for item in grouped_features.toLocalIterator():
+            UxI_pred[0][item[0]] = UxI_pred[0][item[0]] / len(item[1])
 
-    UxF=np.dot(UxI_weighted,IxF)
-    UxF_counter=np.dot(UxI_one,IxF)
-    for col in range(F_dimension):
-        if UxF_counter[0][col]!=0:
-            UxF[0][col]=UxF[0][col]/UxF_counter[0][col]
+        for i in range(I_dimension):
+            if UxI_one[0][i] == 1:
+                UxI_pred[0][i] == 0
 
-    UxI_pred = np.dot(UxF, np.transpose(IxF))
-    for item in grouped_features.toLocalIterator():
-        UxI_pred[0][item[0]] = UxI_pred[0][item[0]] / len(item[1])
-
-    for i in range(I_dimension):
-        if UxI_one[0][i] == 1:
-            UxI_pred[0][i] == 0
-
-    predictions = np.zeros(shape=(1,5))
-    for i in range(5):
-        top_item = np.argmax(UxI_pred, axis = 1)[0]
-        predictions[0][i] = top_item
-        UxI_pred[0][top_item] = 0
-    break
-
+        predictions = np.zeros(shape=(1,5))
+        for i in range(5):
+            top_item = np.argmax(UxI_pred, axis = 1)[0]
+            predictions[0][i] = top_item
+            UxI_pred[0][top_item] = 0
+        #break
+        writer.writerow((user, '{0} {1} {2} {3} {4}'.format(predictions[0][0], predictions[0][1], predictions[0][2], predictions[0][3], predictions[0][4])))
+        i = i + 1
+        print(i / useful_user_array.count())
+finally:
+    f.close()
 #UxI_pred
 #predictions
 #valore massimo per riga
