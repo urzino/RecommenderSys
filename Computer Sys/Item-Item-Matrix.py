@@ -4,6 +4,9 @@ from pyspark.mllib.linalg import Matrix, Matrices
 
 sc = SparkContext.getOrCreate()
 
+sm = Matrices.sparse(3, 2, [0, 0, 2], [0, 2, 1], [9, 6, 8])
+print(sm)
+
 train_rdd = sc.textFile("data/train.csv")
 icm_rdd = sc.textFile("data/icm.csv")
 
@@ -34,8 +37,9 @@ item_array.take(10)
 print(item_array.count())
 
 #tutti i valori dei rating ordinati come gli array sopra
-rating_array = train_clean_data.map(lambda x: int(x[2]))
+rating_array = train_clean_data.map(lambda x: float(x[2]))
 rating_array.take(10)
+print(rating_array.count())
 
 #tutti gli item anche se non sono stati votati
 items = icm_clean_data.map(lambda x: int(x[0]))
