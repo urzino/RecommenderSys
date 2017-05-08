@@ -26,9 +26,17 @@ user_array = train_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, asce
 item_array= icm_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=False)
 features_array = icm_clean_data.map( lambda x: int(x[1])).sortBy(lambda x: x, ascending=False)
 
-UxI_weighted=np.zeros(shape=(user_array.take(1)[0],item_array.take(1)[0]))
-UxI_one=np.zeros(shape=(user_array.take(1)[0],item_array.take(1)[0]))
-IxF=np.zeros(shape=(item_array.take(1)[0],features_array.take(1)[0]))
+U_dimension=user_array.take(1)[0]+2
+I_dimension=item_array.take(1)[0]+2
+F_dimension=features_array.take(1)[0]+2
+U_dimension
+I_dimension
+F_dimension
+
+
+UxI_weighted=np.zeros(shape=(U_dimension,I_dimension))
+UxI_one=np.zeros(shape=(U_dimension,I_dimension))
+IxF=np.zeros(shape=(I_dimension,F_dimension))
 
 
 for user in train_clean_data.toLocalIterator():
