@@ -41,9 +41,19 @@ IxF=np.zeros(shape=(I_dimension,F_dimension))
 
 for user in train_clean_data.toLocalIterator():
     UxI_weighted[user[0]][user[1]]=user[2]
-    UxI_weighted[user[0]][user[1]]=1
+    UxI_one[user[0]][user[1]]=1
+
+for item in icm_clean_data.toLocalIterator():
+    IxF[item[0]][item[1]]=1
 
 UxF=np.dot(UxI_weighted,IxF)
+UxF_counter=np.dot(UxI_one,IxF)
+
+for row in 0:U_dimension:
+    for col in 0:F_dimension:
+        if UxF_counter[row][col]!=0:
+            UxF[row][col]=UxF[row][col]/UxF_counter[row][col]
+
 train_clean_data.take(10)
 icm_clean_data.take(10)
 
