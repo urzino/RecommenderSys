@@ -38,7 +38,7 @@ f = open('submission2.csv', 'wt')
 try:
     writer = csv.writer(f)
     writer.writerow(('userId','RecommendedItemIds'))
-    i = 0
+    k = 0
     for user in useful_user_array.toLocalIterator():
 
         UxI_weighted=np.zeros(shape=(1,I_dimension))
@@ -70,8 +70,8 @@ try:
             UxI_pred[0][top_item] = 0
         #break
         writer.writerow((user, '{0} {1} {2} {3} {4}'.format(predictions[0][0], predictions[0][1], predictions[0][2], predictions[0][3], predictions[0][4])))
-        i = i + 1
-        print(i / useful_user_array.count())
+        k = k + 1
+        print(k)
 finally:
     f.close()
 #UxI_pred
