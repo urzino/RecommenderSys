@@ -11,11 +11,12 @@ import random
 def calculateDist(user1,user2):
     squared_distance_sum=0
 
-    '''for rating1 in user1.toLocalIterator():
-            for rating2 in user2.toLocalIterator():
-                if rating1[1]==rating2[1]:
-                    squared_distance_sum=squared_distance_sum + math.pow((rating1[2]-rating2[2]),2)
-                    print (squared_distance_sum)'''
+
+    for rating1 in user1.toLocalIterator():
+        for rating2 in user2.toLocalIterator():
+            if rating1[1]==rating2[1]:
+                squared_distance_sum=squared_distance_sum + math.pow((rating1[2]-rating2[2]),2)
+                print (squared_distance_sum)
 
     squared_distance_sum=random.uniform(0,90)
 
@@ -27,8 +28,15 @@ def findKNN(K,user1,users_ratings,users_all):
 
     user1_ratings= users_ratings.filter(lambda x: x[0]==user1)
 
+    if user1_ratings.isEmpty():
+        return None
+
+
     for user2 in users_all.toLocalIterator():
         user2_ratings= users_ratings.filter( lambda x: x[0] == user2[0])
+
+        if user2_ratings.isEmpty():
+            continue
 
         distance = calculateDist(user1_ratings,user2_ratings)
 
@@ -83,7 +91,11 @@ k=20
 I_dimension=item_array.take(1)[0]+2
 F_dimension=features_array.take(1)[0]+2
 
+useful_user_array.take(10)
+
 for user in useful_user_array.toLocalIterator():
+
+    print(user)
 
     KNN = findKNN(k,user,train_clean_data,user_array)
     break
