@@ -18,7 +18,7 @@ def calculateDist(user1,user2):
                 squared_distance_sum=squared_distance_sum + math.pow((rating1[2]-rating2[2]),2)
                 print (squared_distance_sum)
 
-    squared_distance_sum=random.uniform(0,90)
+    #squared_distance_sum=random.uniform(0,90)
 
     return  math.sqrt(squared_distance_sum)
 
@@ -28,15 +28,13 @@ def findKNN(K,user1,users_ratings,users_all):
 
     user1_ratings= users_ratings.filter(lambda x: x[0]==user1)
 
-    if user1_ratings.isEmpty():
-        return None
+    #se user1 non ha fatto ratings ritorna none
 
 
     for user2 in users_all.toLocalIterator():
-        user2_ratings= users_ratings.filter( lambda x: x[0] == user2[0])
+        user2_ratings= users_ratings.filter( lambda x: x[0] == user2)
 
-        if user2_ratings.isEmpty():
-            continue
+        #se user2 non ha fatto rating non farci nulla
 
         distance = calculateDist(user1_ratings,user2_ratings)
 
@@ -95,7 +93,6 @@ useful_user_array.take(10)
 
 for user in useful_user_array.toLocalIterator():
 
-    print(user)
 
     KNN = findKNN(k,user,train_clean_data,user_array)
     break
