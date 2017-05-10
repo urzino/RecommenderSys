@@ -3,6 +3,8 @@ import csv
 #from pyspark.mllib.linalg import Matrix, Matrices
 from scipy import linalg, sparse
 import numpy as np
+from itertools import groupby
+from operator import itemgetter
 
 sc = SparkContext.getOrCreate()
 
@@ -54,11 +56,24 @@ grouped_features_array = grouped_features.collect()
 def calculate_features_ratings(user_rates):
     user = user_rates[0]
     item_rates = dict(user_rates[1])
+
+    y = list(filter(lambda x: item_rates.get(x[0], -1) != -1, grouped_features_array))
+    y2 = list()
+    for i in range(len(y)):
+        item = y[i][0]
+        temp = y[i][1]
+        y2 = y2 + list(map(lambda x: (x, item_rates[item]), temp))
+    #[item for item in temp if item[0] == 1][0]
+
+    y2 = sorted(y2, key=lambda x: x[0])
+    y3 = [(x,list(map(itemgetter(1),y))) for x,y in groupby(y2, itemgetter(0))]
+    y4 = list(map(lambda x: (x[0], mean_ratings(x[1])),y3))
+
     #features_rates = list()
     #for i in range(len(item_rates)):
     #temp = grouped_features.filter(lambda x: item_rates.get(x[0], -1) != -1).flatMap(lambda x: [(f, item_rates[x[0]]) for f in x[1]]).groupByKey().map(lambda x: (x[0], mean_ratings(x[1])))
 
-    return (user, temp.collect())
+    return (user, y4)
 
 temp2 = grouped_rates.take(1)[0][1]
 temp3 = list(map(lambda x: x[0], temp2))
@@ -66,14 +81,26 @@ temp3
 temp = dict(temp2)
 #y = grouped_features.filter(lambda x: temp.get(x[0], -1) != -1).flatMap(lambda x: [(f, temp[x[0]]) for f in x[1]]).groupByKey().map(lambda x: (x[0], mean_ratings(x[1])))
 y = list(filter(lambda x: temp.get(x[0], -1) != -1, grouped_features_array))
-y = list(map(lambda x: [for ]))
+y2 = list()
+for i in range(len(y)):
+    item = y[i][0]
+    temp4 = y[i][1]
+    y2 = y2 + list(map(lambda x: (x, temp[item]), temp4))
 temp
 #[item for item in temp if item[0] == 1][0]
-y
 
-for u in grouped_rates.take(5):
+y2 = sorted(y2, key=lambda x: x[0])
+y3 = [(x,list(map(itemgetter(1),y))) for x,y in groupby(y2, itemgetter(0))]
+y4 = list(map(lambda x: (x[0], mean_ratings(x[1])),y3))
+y2
+y4
+y3
+
+i = 0
+for u in grouped_rates.toLocalIterator():
     x = calculate_features_ratings(u)
-    print(x)
+    i += 1
+    print(i)
 #user_features_ratings = grouped_rates.map(calculate_features_ratings)
 #user_features_ratings.take(10)
 '''
