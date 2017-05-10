@@ -19,7 +19,7 @@ icm_clean_data = icm_rdd.filter(lambda x: x != icm_header).map(lambda line: line
 test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
 
 test_users=test_clean_data.map( lambda x: int(x[0])).collect()
-test_users.take(10)
+#test_users.take(10)
 
 #for every item all its features
 grouped_features = icm_clean_data.map(lambda x: (x[0],x[1])).groupByKey().map(lambda x: (x[0], list(x[1])))
@@ -50,9 +50,12 @@ def calculate_features_ratings(user_rates):
     item_rates = dict(user_rates[1])
     #features_rates = list()
     #for i in range(len(item_rates)):
-    temp = grouped_features.filter(lambda x: item_rates.get(x[0], -1) != -1).map
+    temp = grouped_features.filter(lambda x: item_rates.get(x[0], -1) != -1)
 
-temp = dict(grouped_rates.take(1)[0][1])
+temp2 = grouped_rates.take(1)[0][1]
+temp3 = list(map(lambda x: x[0], temp2))
+temp3
+temp = dict(temp2)
 y = grouped_features.filter(lambda x: temp.get(x[0], -1) != -1).flatMap(lambda x: [(f, temp[x[0]]) for f in x[1]])
 temp
 #[item for item in temp if item[0] == 1][0]
