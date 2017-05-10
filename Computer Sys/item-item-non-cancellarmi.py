@@ -1,7 +1,7 @@
 from pyspark import SparkContext
 import csv
 #from pyspark.mllib.linalg import Matrix, Matrices
-from scipy import linalg
+from scipy import linalg, sparse
 import numpy as np
 
 sc = SparkContext.getOrCreate()
@@ -36,7 +36,7 @@ grouped_rates = train_clean_data.map(lambda x: (x[0],(x[1], x[2]))).groupByKey()
 grouped_rates.take(10)
 grouped_rates.cache()
 
-
+#return only test users
 def is_in_test(user):
     return user[0] in test_users
 
@@ -44,33 +44,35 @@ test_user_ratings = grouped_rates.filter(is_in_test)
 test_user_ratings.take(10)
 test_user_ratings.cache()
 
+#returns all the features voted by the user
 def calculate_features_ratings(user_rates):
     user = user_rates[0]
-    item_rates = user_rates[1]
+    item_rates = dict(user_rates[1])
     #features_rates = list()
     #for i in range(len(item_rates)):
-    temp = grouped_features.filter(lambda x: for item in item_rates if item[0] == x)
+    temp = grouped_features.filter(lambda x: item_rates.get(x[0], -1) != -1).map
 
-
-
-def filter_features(f):
-    for t in temp2:
-        if t[0] == f[0]:
-            return True
-    return False
-temp = grouped_rates.take(1)[0][1]
-y = grouped_features.filter(calculate)
+temp = dict(grouped_rates.take(1)[0][1])
+y = grouped_features.filter(lambda x: temp.get(x[0], -1) != -1).flatMap(lambda x: [(f, temp[x[0]]) for f in x[1]])
 temp
 #[item for item in temp if item[0] == 1][0]
-y.take(10)
+y.distinct().count()
 
 user_features_ratings = grouped_rates.map(calculate_features_ratings)
-'''
-user_array = train_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=True)
-user_array.take(10)
-item_array= icm_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=False)
-features_array = icm_clean_data.map( lambda x: int(x[1])).sortBy(lambda x: x, ascending=False)
 
+'''
+
+#15374 utente max
+#user_array = train_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=False)
+#user_array.take(10)
+
+#37141 item max
+#item_array = icm_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=False)
+#item_array.take(10)
+
+#19715 feature max
+#features_array = icm_clean_data.map( lambda x: int(x[1])).sortBy(lambda x: x, ascending=False)
+#features_array.take(10)
 #tutte le righe degli utenti da riempire
 user_array = train_clean_data.map(lambda x: int(x[0]))
 user_array.take(10)
@@ -92,9 +94,9 @@ items = icm_clean_data.map(lambda x: int(x[0]))
 total_items = items.distinct().count()
 print(total_items)
 
+'''
 
-
-
+'''
 #U_dimension=user_array.take(1)[0]+2
 I_dimension=item_array.take(1)[0]+2
 F_dimension=features_array.take(1)[0]+2
