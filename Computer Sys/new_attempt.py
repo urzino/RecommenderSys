@@ -7,14 +7,17 @@ import math
 import random
 
 def getUserRatings(user,all_users):
-    for i in range(len(all_users)):
-        if all_users[i][0] != user:
-            all_users.remove(all_users[i])
-    return all_users
+    us = []
+    for i in range(len(all_users)-1):
+         if all_users[i][0] == user:
+             us.append(all_users[i])
+
+
+    return us
 
 
 
-def calculateDist(user1,user2):
+def calculateDist(us1,us2):
     squared_distance_sum=0
 
 
@@ -53,7 +56,7 @@ def findKNN(K,user1,users_ratings,users_all):
         return None
 
     for k in range(len(users_all)):
-        user2_ratings= getUserRatings(users_all[k],user_ratings.copy())
+        user2_ratings = getUserRatings(users_all[k],users_ratings)
 
         if len(user2_ratings) == 0:
             continue
@@ -65,7 +68,7 @@ def findKNN(K,user1,users_ratings,users_all):
         if 0 in KNN:
             for j in range(K):
                 if KNN[j]==0:
-                    KNN[j]=user2
+                    KNN[j]=users_all[k]
                     KNN_closeness[j]=distance
                     break
         else:
