@@ -29,7 +29,7 @@ users = train_clean_data.map(lambda x: int(x[0]))
 train_items = train_clean_data.map(lambda x: int(x[1]))
 rates = train_clean_data.map(lambda x: int(x[2]))
 print("{0} distinct users and {1} distinct items and {2} rates".format(countDistinct(users), countDistinct(train_items), rates.count()))
-
+print(train_clean_data.count() / (users.distinct().count() * train_items.distinct().count()) * 100)
 grouped_rates = train_clean_data.map(lambda x: (x[0],(x[1], x[2]))).groupByKey().map(lambda x: (x[0], list(x[1])))
 grouped_rates.take(10)
 
