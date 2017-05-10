@@ -44,25 +44,38 @@ test_user_ratings = grouped_rates.filter(is_in_test)
 test_user_ratings.take(10)
 test_user_ratings.cache()
 
+#returns mean of a list
+def mean_ratings(rates):
+    return sum(rates) / float(len(rates))
+
+grouped_features_array = grouped_features.collect()
+
 #returns all the features voted by the user
 def calculate_features_ratings(user_rates):
     user = user_rates[0]
     item_rates = dict(user_rates[1])
     #features_rates = list()
     #for i in range(len(item_rates)):
-    temp = grouped_features.filter(lambda x: item_rates.get(x[0], -1) != -1)
+    #temp = grouped_features.filter(lambda x: item_rates.get(x[0], -1) != -1).flatMap(lambda x: [(f, item_rates[x[0]]) for f in x[1]]).groupByKey().map(lambda x: (x[0], mean_ratings(x[1])))
+
+    return (user, temp.collect())
 
 temp2 = grouped_rates.take(1)[0][1]
 temp3 = list(map(lambda x: x[0], temp2))
 temp3
 temp = dict(temp2)
-y = grouped_features.filter(lambda x: temp.get(x[0], -1) != -1).flatMap(lambda x: [(f, temp[x[0]]) for f in x[1]])
+#y = grouped_features.filter(lambda x: temp.get(x[0], -1) != -1).flatMap(lambda x: [(f, temp[x[0]]) for f in x[1]]).groupByKey().map(lambda x: (x[0], mean_ratings(x[1])))
+y = list(filter(lambda x: temp.get(x[0], -1) != -1, grouped_features_array))
+y = list(map(lambda x: [for ]))
 temp
 #[item for item in temp if item[0] == 1][0]
-y.distinct().count()
+y
 
-user_features_ratings = grouped_rates.map(calculate_features_ratings)
-
+for u in grouped_rates.take(5):
+    x = calculate_features_ratings(u)
+    print(x)
+#user_features_ratings = grouped_rates.map(calculate_features_ratings)
+#user_features_ratings.take(10)
 '''
 
 #15374 utente max
