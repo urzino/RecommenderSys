@@ -1,6 +1,6 @@
 from pyspark import SparkContext
 import csv
-from pyspark.mllib.linalg import Matrix, Matrices
+#from pyspark.mllib.linalg import Matrix, Matrices
 from scipy import linalg
 import numpy as np
 
@@ -14,17 +14,86 @@ train_header = train_rdd.first()
 icm_header = icm_rdd.first()
 test_header= test_rdd.first()
 
-train_clean_data = train_rdd.filter(lambda x: x != train_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1]), int(x[2])))
+train_clean_data = train_rdd.filter(lambda x: x != train_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
 icm_clean_data = icm_rdd.filter(lambda x: x != icm_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1])))
 test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
 
-user_array = train_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=False)
-item_array= icm_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=False)
-features_array = icm_clean_data.map( lambda x: int(x[1])).sortBy(lambda x: x, ascending=False)
-useful_user_array=test_clean_data.map( lambda x: int(x[0]))
+test_users=test_clean_data.map( lambda x: int(x[0])).collect()
+test_users.take(10)
 
+#for every item all its features
 grouped_features = icm_clean_data.map(lambda x: (x[0],x[1])).groupByKey().map(lambda x: (x[0], list(x[1])))
 grouped_features.take(10)
+grouped_features.cache()
+
+#for every features all its items
+grouped_items = icm_clean_data.map(lambda x: (x[1], x[0])).groupByKey().map(lambda x: (x[0], list(x[1])))
+grouped_items.take(10)
+grouped_items.cache()
+
+#for every user all its ratings (item, rate)
+grouped_rates = train_clean_data.map(lambda x: (x[0],(x[1], x[2]))).groupByKey().map(lambda x: (x[0], list(x[1])))
+grouped_rates.take(10)
+grouped_rates.cache()
+
+
+def is_in_test(user):
+    return user[0] in test_users
+
+test_user_ratings = grouped_rates.filter(is_in_test)
+test_user_ratings.take(10)
+test_user_ratings.cache()
+
+def calculate_features_ratings(user_rates):
+    user = user_rates[0]
+    item_rates = user_rates[1]
+    #features_rates = list()
+    #for i in range(len(item_rates)):
+    temp = grouped_features.filter(lambda x: for item in item_rates if item[0] == x)
+
+
+
+def filter_features(f):
+    for t in temp2:
+        if t[0] == f[0]:
+            return True
+    return False
+temp = grouped_rates.take(1)[0][1]
+y = grouped_features.filter(calculate)
+temp
+#[item for item in temp if item[0] == 1][0]
+y.take(10)
+
+user_features_ratings = grouped_rates.map(calculate_features_ratings)
+'''
+user_array = train_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=True)
+user_array.take(10)
+item_array= icm_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=False)
+features_array = icm_clean_data.map( lambda x: int(x[1])).sortBy(lambda x: x, ascending=False)
+
+#tutte le righe degli utenti da riempire
+user_array = train_clean_data.map(lambda x: int(x[0]))
+user_array.take(10)
+total_users = user_array.count()
+print(total_users)
+
+#tutte le colonne degli item da riempire
+item_array = train_clean_data.map(lambda x: int(x[1]))
+item_array.take(10)
+print(item_array.count())
+
+#tutti i valori dei rating ordinati come gli array sopra
+rating_array = train_clean_data.map(lambda x: float(x[2]))
+rating_array.take(10)
+print(rating_array.count())
+
+#tutti gli item anche se non sono stati votati
+items = icm_clean_data.map(lambda x: int(x[0]))
+total_items = items.distinct().count()
+print(total_items)
+
+
+
 
 #U_dimension=user_array.take(1)[0]+2
 I_dimension=item_array.take(1)[0]+2
@@ -79,54 +148,3 @@ finally:
 #valore massimo per riga
 #np.argmax(UxI_pred, axis = 1)[0]
 '''
-UxI_weighted=np.zeros(shape=(U_dimension,I_dimension))
-UxI_one=np.zeros(shape=(U_dimension,I_dimension))
-IxF=np.zeros(shape=(I_dimension,F_dimension))
-
-
-for user in train_clean_data.toLocalIterator():
-    UxI_weighted[user[0]][user[1]]=user[2]
-    UxI_one[user[0]][user[1]]=1
-
-del train_clean_data
-
-for item in icm_clean_data.toLocalIterator():
-    IxF[item[0]][item[1]]=1
-
-del icm_clean_data
-
-
-UxF=np.dot(UxI_weighted,IxF)
-UxF_counter=np.dot(UxI_one,IxF)
-
-for row in 0:U_dimension:
-    for col in 0:F_dimension:
-        if UxF_counter[row][col]!=0:
-            UxF[row][col]=UxF[row][col]/UxF_counter[row][col]
-'''
-train_clean_data.take(10)
-icm_clean_data.take(10)
-
-#tutte le righe degli utenti da riempire
-user_array = train_clean_data.map(lambda x: int(x[0]))
-user_array.take(10)
-total_users = user_array.count()
-print(total_users)
-
-#tutte le colonne degli item da riempire
-item_array = train_clean_data.map(lambda x: int(x[1]))
-item_array.take(10)
-print(item_array.count())
-
-#tutti i valori dei rating ordinati come gli array sopra
-rating_array = train_clean_data.map(lambda x: float(x[2]))
-rating_array.take(10)
-print(rating_array.count())
-
-#tutti gli item anche se non sono stati votati
-items = icm_clean_data.map(lambda x: int(x[0]))
-total_items = items.distinct().count()
-print(total_items)
-
-#matrice iniziale di USERSxITEMS con valori di ratings (numero_righe, numero_col, colonne con valori, righe con valori, valori)
-user_item_rating_matrix = Matrices.sparse(total_users, total_items, item_array.collect(), user_array.collect(), rating_array.collect())
