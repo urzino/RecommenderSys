@@ -57,35 +57,39 @@ def calculate_features_ratings(user_rates):
     user = user_rates[0]
     item_rates = dict(user_rates[1])
 
-    y = list(filter(lambda x: item_rates.get(x[0], -1) != -1, grouped_features_array))
-    y2 = list()
-    for i in range(len(y)):
-        item = y[i][0]
-        temp = y[i][1]
-        y2 = y2 + list(map(lambda x: (x, item_rates[item]), temp))
+    item_features = list(filter(lambda x: item_rates.get(x[0], -1) != -1, grouped_features_array))
+    features_ratings = list()
+    for i in range(len(item_features)):
+        item = item_features[i][0]
+        temp = item_features[i][1]
+        features_ratings = features_ratings + list(map(lambda x: (x, item_rates[item]), temp))
     #[item for item in temp if item[0] == 1][0]
 
-    y2 = sorted(y2, key=lambda x: x[0])
-    y3 = [(x,list(map(itemgetter(1),y))) for x,y in groupby(y2, itemgetter(0))]
-    y4 = list(map(lambda x: (x[0], mean_ratings(x[1])),y3))
+    features_ratings = sorted(features_ratings, key=lambda x: x[0])
+    features_ratings = [(x,list(map(itemgetter(1),y))) for x,y in groupby(features_ratings, itemgetter(0))]
+    result = list(map(lambda x: (x[0], mean_ratings(x[1])),features_ratings))
 
     #features_rates = list()
     #for i in range(len(item_rates)):
     #temp = grouped_features.filter(lambda x: item_rates.get(x[0], -1) != -1).flatMap(lambda x: [(f, item_rates[x[0]]) for f in x[1]]).groupByKey().map(lambda x: (x[0], mean_ratings(x[1])))
 
-    return (user, y4)
+    return (user, result)
 
+'''
 temp2 = grouped_rates.take(1)[0][1]
 temp3 = list(map(lambda x: x[0], temp2))
+
 temp3
 temp = dict(temp2)
 #y = grouped_features.filter(lambda x: temp.get(x[0], -1) != -1).flatMap(lambda x: [(f, temp[x[0]]) for f in x[1]]).groupByKey().map(lambda x: (x[0], mean_ratings(x[1])))
 y = list(filter(lambda x: temp.get(x[0], -1) != -1, grouped_features_array))
+y
 y2 = list()
 for i in range(len(y)):
     item = y[i][0]
     temp4 = y[i][1]
     y2 = y2 + list(map(lambda x: (x, temp[item]), temp4))
+
 temp
 #[item for item in temp if item[0] == 1][0]
 
@@ -95,16 +99,48 @@ y4 = list(map(lambda x: (x[0], mean_ratings(x[1])),y3))
 y2
 y4
 y3
+'''
+def intersects(dict, list):
+    for f in list:
+        if dict.get(f, -1) != -1:
+            return True
+    return False
 
+def calculate_final_ratings(feats, prod):
+    total = 0
+    intersection = set(feats.keys()).intersection(prod)
+    for f in prod:
+        total = total + feats.get(f, 0)
+    return total / float(len(intersection))
+
+def is_in_voted(prod, voted):
+    return
+
+for x in test_user_ratings.take(1):
+    temp = calculate_features_ratings(x)
+    already_voted = test_user_ratings.filter(lambda y: x[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
+    print(temp)
+    print(already_voted)
+    temp3 = dict(temp[1])
+    #remove already voted, calculate products with common features, calculate ratings
+    temp2 = grouped_features.filter(lambda x: intersects(temp3, x[1])).map(lambda x: (x[0], calculate_final_ratings(temp3, x[1])))
+    #filter(lambda x: (temp3.get(temp3[f[0]], -1) != -1 for f in x[1]))
+    #filter(lambda x: intersects(temp3, x[1]))
+    print(temp2.takeOrdered(20, lambda x: -x[1]))
+
+
+#for every test user calculates its model
 i = 0
-for u in grouped_rates.toLocalIterator():
-    x = calculate_features_ratings(u)
+for u in test_user_ratings.toLocalIterator():
+    user_features_ratings = calculate_features_ratings(u)
+    #final_ratings = user_features_ratings.m
     i += 1
     print(i)
+
+
 #user_features_ratings = grouped_rates.map(calculate_features_ratings)
 #user_features_ratings.take(10)
 '''
-
 #15374 utente max
 #user_array = train_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=False)
 #user_array.take(10)
