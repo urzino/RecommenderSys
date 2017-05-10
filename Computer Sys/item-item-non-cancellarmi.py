@@ -113,9 +113,20 @@ def calculate_final_ratings(feats, prod):
         total = total + feats.get(f, 0)
     return total / float(len(intersection))
 
-def is_in_voted(prod, voted):
-    return
+#for every test user calculates its model
+i = 0
+for u in test_user_ratings.take(10):
+    user_features_ratings = calculate_features_ratings(u)
+    already_voted = test_user_ratings.filter(lambda y: x[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
+    dic_user_f_r = dict(user_features_ratings[1])
+    #remove already voted, calculate products with common features, calculate ratings
+    final_ratings = grouped_features.filter(lambda x: not x[0] in already_voted).filter(lambda x: intersects(dic_user_f_r, x[1])).map(lambda x: (x[0], calculate_final_ratings(dic_user_f_r, x[1])))
+    print(final_ratings.takeOrdered(20, lambda x: -x[1]))
+    i += 1
+    print(i)
 
+
+'''
 for x in test_user_ratings.take(1):
     temp = calculate_features_ratings(x)
     already_voted = test_user_ratings.filter(lambda y: x[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
@@ -123,23 +134,13 @@ for x in test_user_ratings.take(1):
     print(already_voted)
     temp3 = dict(temp[1])
     #remove already voted, calculate products with common features, calculate ratings
-    temp2 = grouped_features.filter(lambda x: intersects(temp3, x[1])).map(lambda x: (x[0], calculate_final_ratings(temp3, x[1])))
+    temp2 = grouped_features.filter(lambda x: not x[0] in already_voted).filter(lambda x: intersects(temp3, x[1])).map(lambda x: (x[0], calculate_final_ratings(temp3, x[1])))
+    print(temp2.count())
     #filter(lambda x: (temp3.get(temp3[f[0]], -1) != -1 for f in x[1]))
     #filter(lambda x: intersects(temp3, x[1]))
     print(temp2.takeOrdered(20, lambda x: -x[1]))
+'''
 
-
-#for every test user calculates its model
-i = 0
-for u in test_user_ratings.toLocalIterator():
-    user_features_ratings = calculate_features_ratings(u)
-    #final_ratings = user_features_ratings.m
-    i += 1
-    print(i)
-
-
-#user_features_ratings = grouped_rates.map(calculate_features_ratings)
-#user_features_ratings.take(10)
 '''
 #15374 utente max
 #user_array = train_clean_data.map( lambda x: int(x[0])).sortBy(lambda x: x, ascending=False)
@@ -172,7 +173,6 @@ print(rating_array.count())
 items = icm_clean_data.map(lambda x: int(x[0]))
 total_items = items.distinct().count()
 print(total_items)
-
 '''
 
 '''
