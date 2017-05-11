@@ -21,19 +21,23 @@ icm_clean_data = icm_rdd.filter(lambda x: x != icm_header).map(lambda line: line
 test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
 
 test_users=test_clean_data.map( lambda x: int(x[0])).collect()
+#test_users=[1,2,3,4]
 #test_users.take(10)
 
 #for every item all its features
+#rouped_features = sc.parallelize([(1,[1,2]),(2,[2,3,4]),(3,[3,4]),(4,[1,2,4])])
 grouped_features = icm_clean_data.map(lambda x: (x[0],x[1])).groupByKey().map(lambda x: (x[0], list(x[1])))
 grouped_features.take(10)
 grouped_features.cache()
 
 #for every features all its items
+#grouped_items = sc.parallelize([(1,[1,4]),(2,[1,2,4]),(3,[2,3]),(4,[2,3,4])])
 grouped_items = icm_clean_data.map(lambda x: (x[1], x[0])).groupByKey().map(lambda x: (x[0], list(x[1])))
 grouped_items.take(10)
 grouped_items.cache()
 
 #for every user all its ratings (item, rate)
+#grouped_rates = sc.parallelize([(1,[(1,8),(3,2)]),(2,[(1,2),(2,9),(3,7)]),(3,[(3,1),(4,10)])])
 grouped_rates = train_clean_data.map(lambda x: (x[0],(x[1], x[2]))).groupByKey().map(lambda x: (x[0], list(x[1])))
 grouped_rates.take(10)
 grouped_rates.cache()
@@ -89,17 +93,19 @@ def calculate_final_ratings(feats, prod):
     return total / float(len(intersection))
 
 #for every test user calculates its model
-#i = 0
+i = 0
+final_result = sc.parallelize([])
 for u in test_user_ratings.toLocalIterator():
     user_features_ratings = calculate_features_ratings(u)
     already_voted = test_user_ratings.filter(lambda y: u[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
     dic_user_f_r = dict(user_features_ratings[1])
     #remove already voted, calculate products with common features, calculate ratings
     final_ratings = grouped_features.filter(lambda x: not x[0] in already_voted).filter(lambda x: intersects(dic_user_f_r, x[1])).map(lambda x: (x[0], calculate_final_ratings(dic_user_f_r, x[1])))
+    final_result = final_result.union(final_ratings.filter(lambda x: x[1] >= 8.0))
     #print(final_ratings.takeOrdered(20, lambda x: -x[1]))
-    #i += 1
-    #print(i)
-
+    i += 1
+    print(i)
+#final_result.take(1)
 '''
 temp2 = grouped_rates.take(1)[0][1]
 temp3 = list(map(lambda x: x[0], temp2))
