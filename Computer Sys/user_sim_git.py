@@ -77,9 +77,9 @@ def getUserNrRatings(user,users_nr_ratings):
             return int(users_nr_ratings.pop(i)[1])
     return 0
 
-def findKNN(k,user,similarities):
+def findKNN(k,similarities,user):
 
-    user_sim = similarities.filter(lambda x: x[0]==user)
+    user_sim = similarities.filter(lambda x: x[0]==user).collect()
 
 
     return user_sim
@@ -140,10 +140,11 @@ test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: li
 useful_user_array=test_clean_data.map( lambda x: int(x[0]))
 
 k=20
-
+user_pairs_euclidean.cache()
 for user in useful_user_array.toLocalIterator():
 
     KNN = findKNN(k,user_pairs_euclidean,user)
 
 
     break
+KNN.take(1)

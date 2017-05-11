@@ -42,6 +42,13 @@ grouped_rates = train_clean_data.map(lambda x: (x[0],(x[1], x[2]))).groupByKey()
 grouped_rates.take(10)
 grouped_rates.cache()
 
+#for every item all its ratings
+item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1])).sortBy(lambda x: x[1][1], ascending=False)
+item_ratings.take(10)
+shrinkage_factor = 20
+item_ratings2 = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor)))
+item_ratings2.take(10)
+
 #return only test users
 def is_in_test(user):
     return user[0] in test_users
