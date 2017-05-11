@@ -105,14 +105,16 @@ f = open('submission2.csv', 'wt')
 try:
     writer = csv.writer(f)
     writer.writerow(('userId','RecommendedItemIds'))
+    #i = 0
     for u in test_user_ratings.sortByKey().toLocalIterator():
         user_features_ratings = calculate_features_ratings(u)
         already_voted = test_user_ratings.filter(lambda y: u[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
         dic_user_f_r = dict(user_features_ratings[1])
-        print(dic_user_f_r)
+        #print(dic_user_f_r)
         #remove already voted, calculate products with common features, calculate ratings
         final_ratings = grouped_features.filter(lambda x: not x[0] in already_voted).filter(lambda x: intersects(dic_user_f_r, x[1])).map(lambda x: (x[0], calculate_final_ratings(dic_user_f_r, x[1])))
-        predictions = final_ratings.takeOrdered(5, lambda x: -x[1])
+        #predictions = final_ratings.takeOrdered(5, lambda x: -x[1])
+        predictions = final_ratings.sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).take(5)
         #if len(predictions) != 5:
         #    print(predictions)
         iterator = 0
@@ -120,7 +122,10 @@ try:
             while item_ratings_mean[iterator] in already_voted:
                 iterator = iterator + 1
             predictions = predictions + [item_ratings_mean[iterator]]
-        writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0][0], predictions[1][0], predictions[2][0], predictions[3][0], predictions[4][0])))
+        #writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0][0], predictions[1][0], predictions[2][0], predictions[3][0], predictions[4][0])))
+        writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
+        #i+=1
+        #print(i)
 finally:
     f.close()
         #final_result = final_result.union(final_ratings.filter(lambda x: x[1] >= 8.0))
