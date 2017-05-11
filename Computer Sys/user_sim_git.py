@@ -24,7 +24,7 @@ def keyOnUserPair(item_id,user_and_rating_pair):
     user1_rating,user2_rating = user1_with_rating[1],user2_with_rating[1]
     return (user1_id,user2_id),(user1_rating,user2_rating)
 
-def calcSim(user_pair,rating_pairs):
+def calcSim(user_pair,rating_pairs,m):
     '''
     For each user-user pair, return the specified similarity measure,
     along with co_raters_count.
@@ -39,7 +39,7 @@ def calcSim(user_pair,rating_pairs):
         # sum_x += rt[0]
         n += 1
 
-    cos_sim = cosine(sum_xy,np.sqrt(sum_xx),np.sqrt(sum_yy)) + 2/n
+    cos_sim = cosine(sum_xy,np.sqrt(sum_xx),np.sqrt(sum_yy)) + m/n
     return user_pair, cos_sim
 
 def calcSimEuclid(user_pair,rating_pairs):
@@ -70,7 +70,12 @@ def cosine(dot_product,rating_norm_squared,rating2_norm_squared):
 
     return (numerator / (float(denominator))) if denominator else 0.0
 
+def getUserNrRatings(user,users_nr_ratings):
 
+    for i in range(len(users_nr_ratings)):
+        if users_nr_ratings[i][0] == user:
+            return int(users_nr_ratings.pop(i)[1])
+    return 0
 
 sc = SparkContext.getOrCreate()
 lines_not_filtered = sc.textFile("data/train.csv")
@@ -83,13 +88,13 @@ Parse the vector with item_id as the key:
 '''
 item_user = lines.map(parseVector).cache()
 
+users_ratings_count = item_user.map(lambda x: (x[1][0],1)).reduceByKey(lambda x,y: x+y).collect()
+
+
 '''
 Get co_rating users by joining on item_id:
     item_id -> ((user_1,rating),(user2,rating))
 '''
-
-
-
 item_user_pairs = item_user.join(item_user)
 
 
@@ -106,17 +111,24 @@ user_item_rating_pairs = item_user_pairs.map(
     lambda p: keyOnUserPair(p[0],p[1])).filter(
     lambda p: p[0][0] != p[0][1]).groupByKey()
 
+u
 
 
 '''
 Calculate the cosine similarity for each user pair:
     (user1,user2) ->    (similarity,co_raters_count)
 '''
+users_ratings_count = item_user.map(lambda x: (x[1][0],1)).reduceByKey(lambda x,y: x+y).collect()
+bob=getUserNrRatings(4,users_ratings_count)
+bob
+
+
+
 user_pair_sims = user_item_rating_pairs.map(
-    lambda p: calcSim(p[0],p[1]))
+    lambda p: calcSim(p[0],p[1],getUserNrRatings(p[0][0],users_ratings_count)))
 
 user_pairs_euclidean=user_item_rating_pairs.map(
-    lambda p: calcSimEuclid(p[0],p[1]))
+    lambda p: calcSimEuclid(p[0],p[1],getUserNrRatings(p[0][0],users_ratings_count)))
 
-user_pair_sims.take(118)
-user_pairs_euclidean.take(118)
+user_pair_sims.take(18)
+user_pairs_euclidean.take(1)
