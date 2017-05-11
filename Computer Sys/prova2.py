@@ -35,3 +35,14 @@ grouped_rates.take(10)
 
 grouped_features = icm_clean_data.map(lambda x: (x[0],x[1])).groupByKey().map(lambda x: (x[0], list(x[1])))
 grouped_features.take(10)
+
+#parsing file di similarities salvato
+def parse_KNN(line):
+    line_no_simbols = line.replace("(", "").replace(")", "").replace(" ", "")
+    elements = line_no_simbols.split(",")
+    return ((int(elements[0]),int(elements[1]),float(elements[2])))
+
+knn = sc.textFile("users_similarities.csv")
+knn.take(10)
+knn_clean = knn.map(parse_KNN)
+knn_clean.take(10)
