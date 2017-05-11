@@ -11,73 +11,70 @@ def getUserRatings(user,all_users):
     for i in range(len(all_users)-1):
          if all_users[i][0] == user:
              us.append(all_users[i])
-
-
     return us
 
 
 
 def calculateDist(us1,us2):
     squared_distance_sum=0
-
-
-    '''for rating1 in user1.toLocalIterator():
-
-        rating2 = user2.filter(lambda x: x[1]==rating1[1])
-        if rate.count() != 1:                continue
-
-
-        squared_distance_sum=squared_distance_sum + math.pow((rating1[2]-rating2.take(1)[0][2]),2)
-        print (squared_distance_sum)'''
-
-
-
+    common_items=0
+    uncommon_items=0
 
     for i in range(len(us1)):
+        check = True
         for j in range(len(us2)):
             if us1[i][1]==us2[j][1]:
-
+                common_items = common_items + 1
                 squared_distance_sum=squared_distance_sum + math.pow((us1[i][2]-us2[j][2]),2)
+                check = !Check
+                break
+        if (!check):
+            uncommon_items = uncommon_items + 1
 
 
-    #squared_distance_sum=random.uniform(0,90)
-
-    return  math.sqrt(squared_distance_sum)
+    if common_items != 0:
+        return  math.sqrt(squared_distance_sum) +(uncommon_items/common_items)
+    else:
+        return None
 
 def findKNN(K,user1,users_ratings,users_all):
-    KNN = [0] * K
+    KNN = [-1] * K
     KNN_closeness = [None] * K
-
     user1_ratings = getUserRatings(user1,users_ratings)
-
+    #user1_ratings = list(filter(lambda x: x[0]==user1,users_ratings))
     #se user1 non ha fatto ratings ritorna none
 
     if len(user1_ratings) == 0:
         return None
 
     for k in range(len(users_all)):
+        if users_all[k] == user1:
+            continue
         user2_ratings = getUserRatings(users_all[k],users_ratings)
-
+        #user2_ratings =  list(filter(lambda x: x[0]==users_all[k],users_ratings))
         if len(user2_ratings) == 0:
             continue
         #se user2 non ha fatto rating non farci nulla
 
         distance = calculateDist(user1_ratings,user2_ratings.copy())
 
+        if distance == None:
+            continue
 
-        if 0 in KNN:
+        if -1 in KNN:
             for j in range(K):
-                if KNN[j]==0:
+                if KNN[j]==-1:
                     KNN[j]=users_all[k]
                     KNN_closeness[j]=distance
                     break
         else:
             actual_max_dist= max(KNN_closeness)
-            for i in range(K):
-                if KNN_closeness[i]==actual_max_dist:
-                    KNN[i]=users_all[k]
-                    KNN_closeness[i]=distance
-                    break
+            if distance<actual_max_dist:
+                for i in range(K):
+                    if KNN_closeness[i]==actual_max_dist:
+                        KNN[i]=users_all[k]
+                        KNN_closeness[i]=distance
+                        break
 
 
 
@@ -111,6 +108,7 @@ k=20
 
 train_data = train_clean_data.collect()
 users = user_array.collect()
+
 
 
 for user in useful_user_array.toLocalIterator():
