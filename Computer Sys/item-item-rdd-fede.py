@@ -43,11 +43,11 @@ grouped_rates.take(10)
 grouped_rates.cache()
 
 #for every item all its ratings
-item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1])).sortBy(lambda x: x[1][1], ascending=False)
+item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))#.sortBy(lambda x: x[1][1], ascending=False)
 item_ratings.take(10)
 shrinkage_factor = 20
-item_ratings2 = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor)))
-item_ratings2.take(10)
+item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
+item_ratings_mean
 
 #return only test users
 def is_in_test(user):
@@ -113,8 +113,13 @@ try:
         #remove already voted, calculate products with common features, calculate ratings
         final_ratings = grouped_features.filter(lambda x: not x[0] in already_voted).filter(lambda x: intersects(dic_user_f_r, x[1])).map(lambda x: (x[0], calculate_final_ratings(dic_user_f_r, x[1])))
         predictions = final_ratings.takeOrdered(5, lambda x: -x[1])
-        if len(predictions) != 5:
-            print(predictions)
+        #if len(predictions) != 5:
+        #    print(predictions)
+        iterator = 0
+        for i in range(5 - len(predictions)):
+            while item_ratings_mean[iterator] in already_voted:
+                iterator = iterator + 1
+            predictions = predictions + [item_ratings_mean[iterator]]
         writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0][0], predictions[1][0], predictions[2][0], predictions[3][0], predictions[4][0])))
 finally:
     f.close()
