@@ -79,7 +79,7 @@ def getUserNrRatings(user,users_nr_ratings):
 
 def findKNN(k,similarities,user):
 
-    user_sim = similarities.filter(lambda x: x[0]==user).collect()
+    user_sim = similarities.filter(lambda x: x[0]==user)
 
 
     return user_sim
@@ -135,16 +135,20 @@ user_pairs_euclidean=user_item_rating_pairs.map(
 
 user_pairs_euclidean.take(18)
 
+user_pairs_euclidean.saveAsTextFile('users_similarities.csv')
+
+
 test_rdd= sc.textFile("data/test.csv")
+test_header= test_rdd.first()
 test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
 useful_user_array=test_clean_data.map( lambda x: int(x[0]))
 
 k=20
-user_pairs_euclidean.cache()
+
 for user in useful_user_array.toLocalIterator():
 
     KNN = findKNN(k,user_pairs_euclidean,user)
 
 
     break
-KNN.take(1)
+KNN.take(10)
