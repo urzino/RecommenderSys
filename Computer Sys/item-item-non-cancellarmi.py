@@ -89,16 +89,16 @@ def calculate_final_ratings(feats, prod):
     return total / float(len(intersection))
 
 #for every test user calculates its model
-i = 0
-for u in test_user_ratings.take(10):
+#i = 0
+for u in test_user_ratings.toLocalIterator():
     user_features_ratings = calculate_features_ratings(u)
     already_voted = test_user_ratings.filter(lambda y: u[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
     dic_user_f_r = dict(user_features_ratings[1])
     #remove already voted, calculate products with common features, calculate ratings
     final_ratings = grouped_features.filter(lambda x: not x[0] in already_voted).filter(lambda x: intersects(dic_user_f_r, x[1])).map(lambda x: (x[0], calculate_final_ratings(dic_user_f_r, x[1])))
-    print(final_ratings.takeOrdered(20, lambda x: -x[1]))
-    i += 1
-    print(i)
+    #print(final_ratings.takeOrdered(20, lambda x: -x[1]))
+    #i += 1
+    #print(i)
 
 '''
 temp2 = grouped_rates.take(1)[0][1]
