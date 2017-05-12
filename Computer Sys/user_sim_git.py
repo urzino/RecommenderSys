@@ -142,7 +142,7 @@ user_pairs_euclidean.saveAsTextFile('users_similarities2.csv')
 
 
 
-'''everything already computed, go on from here but remember to run the imports and the sparkContext'''
+'''everything already computed, go on from here but remember to run the imports'''
 
 
 
@@ -302,12 +302,12 @@ for user in test_user_ratings.sortByKey().toLocalIterator():
 
     pupo +=1
 
-    if pupo ==8:
+    if pupo ==1:
         break
 
 
 
-    
+
 len(KNN)
 len(items_of_similar_users)
 items_of_similar_users
