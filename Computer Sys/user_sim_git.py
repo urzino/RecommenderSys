@@ -305,7 +305,7 @@ for user in test_user_ratings.sortByKey().toLocalIterator():
     #if the prediction cannot find enaugh items, the non voted top populars are provided
     iterator = 0
     for i in range(5 - len(predictions)):
-        while item_ratings_mean[iterator] in already_voted:
+        while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
             iterator = iterator + 1
         predictions = predictions + [item_ratings_mean[iterator]]'''
 
