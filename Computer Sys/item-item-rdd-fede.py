@@ -128,10 +128,7 @@ try:
         #print(i)
 finally:
     f.close()
-        #final_result = final_result.union(final_ratings.filter(lambda x: x[1] >= 8.0))
-        #print(final_ratings.takeOrdered(20, lambda x: -x[1]))
-        #i += 1
-    #final_result.take(1)
+        
 '''
 temp2 = grouped_rates.take(1)[0][1]
 temp3 = list(map(lambda x: x[0], temp2))

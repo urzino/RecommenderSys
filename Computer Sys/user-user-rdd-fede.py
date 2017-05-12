@@ -21,7 +21,6 @@ train_clean_data = train_rdd.filter(lambda x: x != train_header).map(lambda line
 test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
 
 test_users=test_clean_data.map( lambda x: int(x[0])).collect()
-#test_users=[1,2,3,4]
 #test_users.take(10)
 
 #for every item all its features
