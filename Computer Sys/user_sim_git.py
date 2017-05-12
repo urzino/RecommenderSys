@@ -270,11 +270,20 @@ grouped_features_array = grouped_features.collect()
 
 k=20
 pupo=0
+
+
+
+
+#stampiamo i KNN
+f = open('losKNN20.csv', 'wt')
+writer = csv.writer(f)
+
+
 for user in test_user_ratings.sortByKey().toLocalIterator():
 
     #accordingly to the KNN users find the items to which predict the rate
     KNN = findKNN(k,similarities_clean,user[0])
-    items_of_similar_users = train_clean_data.filter(lambda x:x[0] in KNN).map(lambda x: x[1]).collect()
+    '''items_of_similar_users = train_clean_data.filter(lambda x:x[0] in KNN).map(lambda x: x[1]).collect()
     items_of_similar_users= list(set(items_of_similar_users))
 
     dic_user_f_r = dict(user_features_ratings[1])
@@ -298,14 +307,18 @@ for user in test_user_ratings.sortByKey().toLocalIterator():
     for i in range(5 - len(predictions)):
         while item_ratings_mean[iterator] in already_voted:
             iterator = iterator + 1
-        predictions = predictions + [item_ratings_mean[iterator]]
+        predictions = predictions + [item_ratings_mean[iterator]]'''
 
     pupo +=1
 
-    if pupo ==1:
-        break
+
+    #stampiamo i knn
+    writer.writerow((user[0],KNN))
+    print(pupo)
 
 
+
+f.close()
 
 
 len(KNN)
