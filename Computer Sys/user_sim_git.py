@@ -57,7 +57,7 @@ def calcSimEuclid(user_pair,rating_pairs,m):
         # sum_x += rt[0]
         n += 1
 
-    euc_sim = np.sqrt(squared_errors_sum) +m/n
+    euc_sim = np.sqrt(squared_errors_sum) +(m-n)/n
     return user_pair, euc_sim
 
 def cosine(dot_product,rating_norm_squared,rating2_norm_squared):
@@ -74,7 +74,7 @@ def getUserNrRatings(user,users_nr_ratings):
 
     for i in range(len(users_nr_ratings)):
         if users_nr_ratings[i][0] == user:
-            return int(users_nr_ratings.pop(i)[1])
+            return int(users_nr_ratings[i][1])
     return 0
 
 sc = SparkContext.getOrCreate()
@@ -130,14 +130,29 @@ user_pairs_euclidean.take(18)
 
 user_pairs_euclidean.saveAsTextFile('users_similarities.csv')
 
+
+
+
+
+
+
+'''everything already computed, go on from here but remember to run the imports and the sparkContext'''
+
+
+
+
+
+
+
 def findKNN(k,similarities,user):
-    user_sim = similarities.filter(lambda x: x[0]==user)
+
+    '''used for testing'''
+    #user_sim = similarities.filter(lambda x: x[0]==user).sortBy(lambda x: x[2], ascending=True).collect()
+    user_sim = similarities.filter(lambda x: x[0]==user).sortBy(lambda x: x[2], ascending=True).map(lambda x: x[1]).collect()
+
     return user_sim
 
-test_rdd= sc.textFile("data/test.csv")
-test_header= test_rdd.first()
-test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
-useful_user_array=test_clean_data.map( lambda x: int(x[0]))
+
 
 #parsing file di similarities salvato
 def parse_KNN(line):
@@ -145,17 +160,38 @@ def parse_KNN(line):
     elements = line_no_simbols.split(",")
     return ((int(elements[0]),int(elements[1]),float(elements[2])))
 
-knn = sc.textFile("users_similarities.csv")
-knn.take(10)
-knn_clean = knn.map(parse_KNN)
-knn_clean.take(10)
+all_similarities = sc.textFile("users_similarities.csv")
+similarities_clean = all_similarities.map(parse_KNN)
+
+
+#taken users to raccomend
+test_rdd= sc.textFile("data/test.csv")
+test_header= test_rdd.first()
+test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
+useful_user_array=test_clean_data.map( lambda x: int(x[0]))
+
+#taken the whole training set
+train_rdd = sc.textFile("data/train.csv")
+train_header = train_rdd.first()
+train_clean_data = train_rdd.filter(lambda x: x != train_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1]), int(x[2])))
+
+
 
 k=20
 
 for user in useful_user_array.toLocalIterator():
 
-    KNN = findKNN(k,user_pairs_euclidean,user)
+    KNN = findKNN(k,similarities_clean,user)
 
+    items_of_similar_users=[]
+
+    for i in range(len(KNN)):
+            for k in train_clean_data.filter(lambda x:x[0]==KNN[i]).map(lambda x: x[1]).collect():
+                items_of_similar_users.append(k)
+
+    items_of_similar_users= list(set(items_of_similar_users))
 
     break
-KNN.take(10)
+KNN
+len(items_of_similar_users)
+items_of_similar_users
