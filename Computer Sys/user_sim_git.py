@@ -184,20 +184,22 @@ train_clean_data = train_rdd.filter(lambda x: x != train_header).map(lambda line
 
 
 k=20
-
+#(3165, 503)
 for user in useful_user_array.toLocalIterator():
 
     KNN = findKNN(k,similarities_clean,user)
 
-    items_of_similar_users=[]
+    #items_of_similar_users=[]
 
-    for i in range(len(KNN)):
-            for k in train_clean_data.filter(lambda x:x[0]==KNN[i]).map(lambda x: x[1]).collect():
-                items_of_similar_users.append(k)
+    items_of_similar_users = train_clean_data.filter(lambda x:x[0] in KNN).map(lambda x: x[1]).collect()
+
+    #for i in range(len(KNN)):
+    #       for k in train_clean_data.filter(lambda x:x[0]==KNN[i]).map(lambda x: x[1]).collect():
+    #            items_of_similar_users.append(k)
 
     items_of_similar_users= list(set(items_of_similar_users))
 
     break
-KNN
+len(KNN)
 len(items_of_similar_users)
 items_of_similar_users
