@@ -119,7 +119,7 @@ try:
         #    print(predictions)
         iterator = 0
         for i in range(5 - len(predictions)):
-            while item_ratings_mean[iterator] in already_voted:
+            while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
                 iterator = iterator + 1
             predictions = predictions + [item_ratings_mean[iterator]]
         #writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0][0], predictions[1][0], predictions[2][0], predictions[3][0], predictions[4][0])))
