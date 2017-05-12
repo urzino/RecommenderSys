@@ -93,7 +93,7 @@ try:
             while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
                 iterator = iterator + 1
             predictions = predictions + [item_ratings_mean[iterator]]
-        writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
+        writer.writerow((u, '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
         break
 finally:
     f.close()

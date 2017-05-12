@@ -27,35 +27,35 @@ test_users=test_clean_data.map( lambda x: int(x[0])).collect()
 #for every item all its features
 #rouped_features = sc.parallelize([(1,[1,2]),(2,[2,3,4]),(3,[3,4]),(4,[1,2,4])])
 grouped_features = icm_clean_data.map(lambda x: (x[0],x[1])).groupByKey().map(lambda x: (x[0], list(x[1])))
-grouped_features.take(10)
+#grouped_features.take(10)
 grouped_features.cache()
 
 #for every features all its items
 #grouped_items = sc.parallelize([(1,[1,4]),(2,[1,2,4]),(3,[2,3]),(4,[2,3,4])])
 grouped_items = icm_clean_data.map(lambda x: (x[1], x[0])).groupByKey().map(lambda x: (x[0], list(x[1])))
-grouped_items.take(10)
+#grouped_items.take(10)
 grouped_items.cache()
 
 #for every user all its ratings (item, rate)
 #grouped_rates = sc.parallelize([(1,[(1,8),(3,2)]),(2,[(1,2),(2,9),(3,7)]),(3,[(3,1),(4,10)])])
 grouped_rates = train_clean_data.map(lambda x: (x[0],(x[1], x[2]))).groupByKey().map(lambda x: (x[0], list(x[1])))
-grouped_rates.take(10)
+#grouped_rates.take(10)
 grouped_rates.cache()
 
 #for every item all its ratings
 item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))#.sortBy(lambda x: x[1][1], ascending=False)
-item_ratings.take(10)
+#item_ratings.take(10)
 shrinkage_factor = 20
 item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
-item_ratings_mean
+#item_ratings_mean
 
 #return only test users
 def is_in_test(user):
     return user[0] in test_users
 
-test_user_ratings = grouped_rates.filter(is_in_test)
-test_user_ratings.take(10)
-test_user_ratings.cache()
+test_user_ratings = dict(grouped_rates.filter(is_in_test).sortByKey().collect())
+#test_user_ratings.take(10)
+#test_user_ratings.cache()
 
 #returns mean of a list
 def mean_ratings(rates):
@@ -64,9 +64,9 @@ def mean_ratings(rates):
 grouped_features_array = grouped_features.collect()
 
 #returns all the features voted by the user
-def calculate_features_ratings(user_rates):
-    user = user_rates[0]
-    item_rates = dict(user_rates[1])
+def calculate_features_ratings(user_id, rates_list):
+    #user = user_rates[0]
+    item_rates = dict(rates_list)
 
     item_features = list(filter(lambda x: item_rates.get(x[0], -1) != -1, grouped_features_array))
     features_ratings = list()
@@ -84,7 +84,7 @@ def calculate_features_ratings(user_rates):
     #for i in range(len(item_rates)):
     #temp = grouped_features.filter(lambda x: item_rates.get(x[0], -1) != -1).flatMap(lambda x: [(f, item_rates[x[0]]) for f in x[1]]).groupByKey().map(lambda x: (x[0], mean_ratings(x[1])))
 
-    return (user, result)
+    return (user_id, result)
 
 def intersects(dict, list):
     for f in list:
@@ -106,9 +106,9 @@ try:
     writer = csv.writer(f)
     writer.writerow(('userId','RecommendedItemIds'))
     #i = 0
-    for u in test_user_ratings.sortByKey().toLocalIterator():
-        user_features_ratings = calculate_features_ratings(u)
-        already_voted = test_user_ratings.filter(lambda y: u[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
+    for u in test_user_ratings.keys():
+        user_features_ratings = calculate_features_ratings(u, test_user_ratings[u])
+        already_voted = test_user_ratings[u]#.filter(lambda y: u[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
         dic_user_f_r = dict(user_features_ratings[1])
         #print(dic_user_f_r)
         #remove already voted, calculate products with common features, calculate ratings
@@ -123,12 +123,12 @@ try:
                 iterator = iterator + 1
             predictions = predictions + [item_ratings_mean[iterator]]
         #writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0][0], predictions[1][0], predictions[2][0], predictions[3][0], predictions[4][0])))
-        writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
+        writer.writerow((u, '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
         #i+=1
         #print(i)
 finally:
     f.close()
-        
+
 '''
 temp2 = grouped_rates.take(1)[0][1]
 temp3 = list(map(lambda x: x[0], temp2))
