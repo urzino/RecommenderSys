@@ -123,12 +123,18 @@ users_ratings_count = item_user.map(lambda x: (x[1][0],1)).reduceByKey(lambda x,
 '''user_pair_sims = user_item_rating_pairs.map(
     lambda p: calcSim(p[0],p[1],getUserNrRatings(p[0][0],users_ratings_count)))'''
 
-user_pairs_euclidean=user_item_rating_pairs.map(
+#taken users to raccomend
+test_rdd= sc.textFile("data/test.csv")
+test_header= test_rdd.first()
+test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
+useful_user_array=test_clean_data.map( lambda x: int(x[0])).collect()
+
+user_pairs_euclidean=user_item_rating_pairs.filter(lambda x: x[0][0] in useful_user_array).map(
     lambda p: calcSimEuclid(p[0],p[1],getUserNrRatings(p[0][0],users_ratings_count)))
 
 user_pairs_euclidean.take(18)
 
-user_pairs_euclidean.saveAsTextFile('users_similarities.csv')
+user_pairs_euclidean.saveAsTextFile('users_similarities2.csv')
 
 
 
@@ -160,7 +166,7 @@ def parse_KNN(line):
     elements = line_no_simbols.split(",")
     return ((int(elements[0]),int(elements[1]),float(elements[2])))
 
-all_similarities = sc.textFile("users_similarities.csv")
+all_similarities = sc.textFile("users_similarities2.csv")
 similarities_clean = all_similarities.map(parse_KNN)
 
 
