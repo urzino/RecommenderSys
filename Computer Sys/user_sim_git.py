@@ -150,10 +150,64 @@ user_pairs_euclidean.saveAsTextFile('users_similarities2.csv')
 
 
 
+
+
+
+
+
+
+
+import csv
+from scipy import linalg, sparse
+import numpy as np
+from itertools import groupby
+from operator import itemgetter
+
+sc = SparkContext.getOrCreate()
+
+#ciaopalo
+def intersects(dict, list):
+    for f in list:
+        if dict.get(f, -1) != -1:
+            return True
+    return False
+
+#self explainatory
+def calculate_final_ratings(feats, prod):
+    total = 0
+    intersection = set(feats.keys()).intersection(prod)
+    for f in prod:
+        total = total + feats.get(f, 0)
+    return total / (float(len(intersection)) + 0.5)
+
+#ret mean of a list
+def mean_ratings(rates):
+    return sum(rates) / float(len(rates))
+
+
+#returns all the features voted by the user
+def calculate_features_ratings(user_rates):
+    user = user_rates[0]
+    item_rates = dict(user_rates[1])
+
+    item_features = list(filter(lambda x: item_rates.get(x[0], -1) != -1, grouped_features_array))
+    features_ratings = list()
+    for i in range(len(item_features)):
+        item = item_features[i][0]
+        temp = item_features[i][1]
+        features_ratings = features_ratings + list(map(lambda x: (x, item_rates[item]), temp))
+    #[item for item in temp if item[0] == 1][0]
+
+    features_ratings = sorted(features_ratings, key=lambda x: x[0])
+    features_ratings = [(x,list(map(itemgetter(1),y))) for x,y in groupby(features_ratings, itemgetter(0))]
+    result = list(map(lambda x: (x[0], mean_ratings(x[1])),features_ratings))
+
+
+    return (user, result)
+
+#find the K-nearest neighbor of the selected user
 def findKNN(k,similarities,user):
 
-    '''used for testing'''
-    #user_sim = similarities.filter(lambda x: x[0]==user).sortBy(lambda x: x[2], ascending=True).collect()
     user_sim = similarities.filter(lambda x: x[0]==user).sortBy(lambda x: x[2], ascending=True).map(lambda x: x[1]).collect()
 
     return user_sim
@@ -174,32 +228,91 @@ similarities_clean = all_similarities.map(parse_KNN)
 test_rdd= sc.textFile("data/test.csv")
 test_header= test_rdd.first()
 test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
-useful_user_array=test_clean_data.map( lambda x: int(x[0]))
+test_users=test_clean_data.map( lambda x: int(x[0])).collect()
 
 #taken the whole training set
 train_rdd = sc.textFile("data/train.csv")
 train_header = train_rdd.first()
 train_clean_data = train_rdd.filter(lambda x: x != train_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1]), int(x[2])))
 
+#taken the item features informations
+icm_rdd = sc.textFile("data/icm.csv")
+icm_header = icm_rdd.first()
+icm_clean_data = icm_rdd.filter(lambda x: x != icm_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1])))
+
+
+#taken the features of every item
+grouped_features = icm_clean_data.map(lambda x: (x[0],x[1])).groupByKey().map(lambda x: (x[0], list(x[1])))
+grouped_features.cache()
+
+# taken the items of every feature
+grouped_items = icm_clean_data.map(lambda x: (x[1], x[0])).groupByKey().map(lambda x: (x[0], list(x[1])))
+grouped_items.cache()
+
+#taken user (item, rating)
+grouped_rates = train_clean_data.map(lambda x: (x[0],(x[1], x[2]))).groupByKey().map(lambda x: (x[0], list(x[1])))
+grouped_rates.cache()
+
+#for every item all ratings shrinked
+item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))
+shrinkage_factor = 20
+item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
+
+#taken all ratings of the users to raccomend
+def is_in_test(user):
+    return user[0] in test_users
+test_user_ratings = grouped_rates.filter(is_in_test)
+test_user_ratings.cache()
+
+#?????
+grouped_features_array = grouped_features.collect()
 
 
 k=20
-#(3165, 503)
-for user in useful_user_array.toLocalIterator():
+pupo=0
+for user in test_user_ratings.sortByKey().toLocalIterator():
 
-    KNN = findKNN(k,similarities_clean,user)
-
-    #items_of_similar_users=[]
-
+    #accordingly to the KNN users find the items to which predict the rate
+    KNN = findKNN(k,similarities_clean,user[0])
     items_of_similar_users = train_clean_data.filter(lambda x:x[0] in KNN).map(lambda x: x[1]).collect()
-
-    #for i in range(len(KNN)):
-    #       for k in train_clean_data.filter(lambda x:x[0]==KNN[i]).map(lambda x: x[1]).collect():
-    #            items_of_similar_users.append(k)
-
     items_of_similar_users= list(set(items_of_similar_users))
 
-    break
+    dic_user_f_r = dict(user_features_ratings[1])
+
+
+    #gets the evaluation of the ratings of every feature
+    user_features_ratings = calculate_features_ratings(user)
+
+    #gets what the current user already voted
+    already_voted = test_user_ratings.filter(lambda y: user[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
+
+
+    #ccomputes ratings of items voted by similar users
+    final_ratings = grouped_features.filter(lambda x: (not x[0] in already_voted) and (x[0] in items_of_similar_users) ).filter(lambda x: intersects(dic_user_f_r, x[1])).map(lambda x: (x[0], calculate_final_ratings(dic_user_f_r, x[1])))
+
+    #sort the rated items in  order of rating and takes the best ones
+    predictions = final_ratings.sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).take(5)
+
+    #if the prediction cannot find enaugh items, the non voted top populars are provided
+    iterator = 0
+    for i in range(5 - len(predictions)):
+        while item_ratings_mean[iterator] in already_voted:
+            iterator = iterator + 1
+        predictions = predictions + [item_ratings_mean[iterator]]
+
+    pupo +=1
+
+    if pupo ==8:
+        break
+
+
+
+    
 len(KNN)
 len(items_of_similar_users)
 items_of_similar_users
+user_features_ratings
+already_voted
+final_ratings.take(10)
+predictions
+dic_user_f_r
