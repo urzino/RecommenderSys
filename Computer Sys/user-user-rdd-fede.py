@@ -45,9 +45,9 @@ grouped_rates.cache()
 def is_in_test(user):
     return user[0] in test_users
 
-test_user_ratings = dict(grouped_rates.filter(is_in_test).sortByKey().collect())
+test_user_ratings = grouped_rates.filter(is_in_test).sortByKey()
 #test_user_ratings.take(10)
-#test_user_ratings.cache()
+test_user_ratings.cache()
 
 #find the K-nearest neighbor of the selected user
 def findKNN(k,similarities,user):
@@ -81,9 +81,9 @@ try:
     #i = 0
     k = 20
     shrinkage_factor_knn = 20
-    for u in test_user_ratings.keys():
-        KNN = findKNN(k,similarities_clean,u)
-        already_voted = test_user_ratings[u]
+    for u in test_user_ratings.toLocalIterator():
+        KNN = findKNN(k,similarities_clean,u[0])
+        already_voted = test_user_ratings.filter(lambda y: u[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
         items_of_similar_users = grouped_rates.filter(lambda x:x[0] in KNN).flatMap(lambda x: x[1])#.collect()
         items_ratings_similar = items_of_similar_users.aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))
         items_ratings_similar_mean = items_ratings_similar.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor_knn))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
