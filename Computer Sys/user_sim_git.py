@@ -77,13 +77,6 @@ def getUserNrRatings(user,users_nr_ratings):
             return int(users_nr_ratings.pop(i)[1])
     return 0
 
-def findKNN(k,similarities,user):
-
-    user_sim = similarities.filter(lambda x: x[0]==user)
-
-
-    return user_sim
-
 sc = SparkContext.getOrCreate()
 lines_not_filtered = sc.textFile("data/train.csv")
 header = lines_not_filtered.first()
@@ -137,11 +130,25 @@ user_pairs_euclidean.take(18)
 
 user_pairs_euclidean.saveAsTextFile('users_similarities.csv')
 
+def findKNN(k,similarities,user):
+    user_sim = similarities.filter(lambda x: x[0]==user)
+    return user_sim
 
 test_rdd= sc.textFile("data/test.csv")
 test_header= test_rdd.first()
 test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
 useful_user_array=test_clean_data.map( lambda x: int(x[0]))
+
+#parsing file di similarities salvato
+def parse_KNN(line):
+    line_no_simbols = line.replace("(", "").replace(")", "").replace(" ", "")
+    elements = line_no_simbols.split(",")
+    return ((int(elements[0]),int(elements[1]),float(elements[2])))
+
+knn = sc.textFile("users_similarities.csv")
+knn.take(10)
+knn_clean = knn.map(parse_KNN)
+knn_clean.take(10)
 
 k=20
 
