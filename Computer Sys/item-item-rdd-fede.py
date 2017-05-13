@@ -132,9 +132,7 @@ for u in test_user_ratings.toLocalIterator():
             predictions.pop(len(predictions) - 1)
         inserted += 1
         iterator += 1
-    #print(predictions)
     predictions = sorted(predictions, key=lambda x: -x[0])
-    #print(predictions)
     #for i in range(5 - len(predictions)):
     #    while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
     #        iterator = iterator + 1
