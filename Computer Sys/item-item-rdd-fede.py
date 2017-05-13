@@ -35,6 +35,7 @@ grouped_features.cache()
 grouped_items = icm_clean_data.map(lambda x: (x[1], x[0])).groupByKey().map(lambda x: (x[0], list(x[1])))
 #grouped_items.take(10)
 grouped_items.cache()
+grouped_items_dic = dict(grouped_items.collect())
 
 #for every user all its ratings (item, rate)
 #grouped_rates = sc.parallelize([(1,[(1,8),(3,2)]),(2,[(1,2),(2,9),(3,7)]),(3,[(3,1),(4,10)])])
@@ -59,7 +60,7 @@ test_user_ratings.cache()
 
 #returns mean of a list
 def mean_ratings(rates):
-    return sum(rates) / float(len(rates))
+    return sum(rates[1]) * float(len(rates[1])) / len(grouped_items_dic[rates[0]])
 
 grouped_features_array = grouped_features.collect()
 
@@ -68,21 +69,18 @@ def calculate_features_ratings(user_rates):
     user = user_rates[0]
     item_rates = dict(user_rates[1])
 
+    #all items with their features
     item_features = list(filter(lambda x: item_rates.get(x[0], -1) != -1, grouped_features_array))
     features_ratings = list()
     for i in range(len(item_features)):
         item = item_features[i][0]
         temp = item_features[i][1]
         features_ratings = features_ratings + list(map(lambda x: (x, item_rates[item]), temp))
-    #[item for item in temp if item[0] == 1][0]
 
+    #all features with their ratings
     features_ratings = sorted(features_ratings, key=lambda x: x[0])
     features_ratings = [(x,list(map(itemgetter(1),y))) for x,y in groupby(features_ratings, itemgetter(0))]
-    result = list(map(lambda x: (x[0], mean_ratings(x[1])),features_ratings))
-
-    #features_rates = list()
-    #for i in range(len(item_rates)):
-    #temp = grouped_features.filter(lambda x: item_rates.get(x[0], -1) != -1).flatMap(lambda x: [(f, item_rates[x[0]]) for f in x[1]]).groupByKey().map(lambda x: (x[0], mean_ratings(x[1])))
+    result = list(map(lambda x: (x[0], mean_ratings(x)),features_ratings))
 
     return (user, result)
 
