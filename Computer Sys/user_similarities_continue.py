@@ -356,8 +356,8 @@ for user in test_user_ratings.sortByKey().toLocalIterator():
     writer.writerow((user[0], '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
     pupo +=1
     print(pupo)
-    if pupo==4:
-        break
+    #if pupo==4:
+        #break
 f.close()
 
 
