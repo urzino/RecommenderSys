@@ -308,9 +308,15 @@ def parse_neighbors(line):
 user_neighbors_raw = sc.textFile("losKNN20_1.csv")
 user_neighbors_clean = user_neighbors_raw.map(parse_neighbors)
 collected_user_neighbors_clean=dict(user_neighbors_clean.collect())
+tartufo=len(collected_user_neighbors_clean)
 #mario=user_neighbors_clean.filter(lambda x: x[0] == 4).map( lambda x: x[1]).collect()
 #mario[0]
 pupo=0
+f = open('submission.csv', 'wt')
+writer = csv.writer(f)
+writer.writerow(('userId','RecommendedItemIds'))
+
+
 for user in test_user_ratings.sortByKey().toLocalIterator():
 
     #accordingly to the KNN users find the items to which predict the rate
@@ -327,6 +333,7 @@ for user in test_user_ratings.sortByKey().toLocalIterator():
     #gets the evaluation of the ratings of every feature
     user_features_ratings = calculate_features_ratings(user)
     dic_user_f_r = dict(user_features_ratings[1])
+
     #gets what the current user already voted
     #already_voted = test_user_ratings.filter(lambda y: user[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
 
@@ -345,15 +352,19 @@ for user in test_user_ratings.sortByKey().toLocalIterator():
             iterator = iterator + 1
         predictions = predictions + [item_ratings_mean[iterator]]
 
+
+    writer.writerow((user[0], '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
     pupo +=1
     print(pupo)
-    if pupo==2:
+    if pupo==4:
         break
+f.close()
 
 
 
-
-
+final_ratings.take(pupo)
+ratings_avg=final_ratings.filter(lambda x: x[1]>5)
+ratings_avg
 
 
 
@@ -361,9 +372,6 @@ for user in test_user_ratings.sortByKey().toLocalIterator():
 
 
 len(items_of_similar_users)
-items_of_similar_users
-user_features_ratings
 already_voted
 final_ratings.sortBy(lambda x: x[1], ascending = False).take(10)
 predictions
-dic_user_f_r
