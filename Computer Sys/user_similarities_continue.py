@@ -162,6 +162,7 @@ from scipy import linalg, sparse
 import numpy as np
 from itertools import groupby
 from operator import itemgetter
+from pyspark import SparkContext
 
 sc = SparkContext.getOrCreate()
 
@@ -247,8 +248,10 @@ def is_in_test(user):
     return user[0] in test_users
 test_user_ratings = grouped_rates.filter(is_in_test)
 test_user_ratings.cache()
+test_user_ratings.take(10)
 
-#?????
+test2 = dict(test_user_ratings.map(lambda x: (x[0], [y[0] for y in x[1]])).collect())
+#used to calculate features_ratings, array because used in lamda
 grouped_features_array = grouped_features.collect()
 
 
@@ -302,19 +305,19 @@ def parse_neighbors(line):
         return (int(user),[int(x) for x in elements[:20]])
     return(int(user),[])
 
-
-
-
 user_neighbors_raw = sc.textFile("losKNN20_1.csv")
 user_neighbors_clean = user_neighbors_raw.map(parse_neighbors)
-collected_user_neighbors_clean=user_neighbors_clean.collect()
-mario=user_neighbors_clean.filter(lambda x: x[0] == 4).map( lambda x: x[1]).collect()
-mario[0]
+collected_user_neighbors_clean=dict(user_neighbors_clean.collect())
+#mario=user_neighbors_clean.filter(lambda x: x[0] == 4).map( lambda x: x[1]).collect()
+#mario[0]
 pupo=0
 for user in test_user_ratings.sortByKey().toLocalIterator():
 
     #accordingly to the KNN users find the items to which predict the rate
-    KNN = user_neighbors_clean.filter(lambda x: x[0] == user[0]).map( lambda x: x[1]).collect()[0]
+    #KNN = user_neighbors_clean.filter(lambda x: x[0] == user[0]).map( lambda x: x[1]).collect()[0]
+
+    KNN = collected_user_neighbors_clean[user[0]]
+
     items_of_similar_users = train_clean_data.filter(lambda x:x[0] in KNN).map(lambda x: x[1]).collect()
     items_of_similar_users= list(set(items_of_similar_users))
 
@@ -325,8 +328,9 @@ for user in test_user_ratings.sortByKey().toLocalIterator():
     user_features_ratings = calculate_features_ratings(user)
     dic_user_f_r = dict(user_features_ratings[1])
     #gets what the current user already voted
-    already_voted = test_user_ratings.filter(lambda y: user[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
+    #already_voted = test_user_ratings.filter(lambda y: user[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
 
+    already_voted = test2[user[0]]
 
     #ccomputes ratings of items voted by similar users
     final_ratings = grouped_features.filter(lambda x: (not x[0] in already_voted) and (x[0] in items_of_similar_users) ).filter(lambda x: intersects(dic_user_f_r, x[1])).map(lambda x: (x[0], calculate_final_ratings(dic_user_f_r, x[1])))
