@@ -162,9 +162,10 @@ from scipy import linalg, sparse
 import numpy as np
 from itertools import groupby
 from operator import itemgetter
-from pyspark import SparkContext
+from pyspark import SparkContext,SparkConf
+conf = SparkConf().setAll([('spark.executor.memory', '8g'), ('spark.executor.cores', '7'), ('spark.cores.max', '7'), ('spark.driver.memory','8g')])
+sc = SparkContext.getOrCreate(conf = conf)
 
-sc = SparkContext.getOrCreate()
 
 #ciaopalo
 def intersects(dict, list):
