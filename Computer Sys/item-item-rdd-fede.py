@@ -46,7 +46,7 @@ grouped_rates.cache()
 #for every item all its ratings
 item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))#.sortBy(lambda x: x[1][1], ascending=False)
 #item_ratings.take(10)
-shrinkage_factor = 50
+shrinkage_factor = 20
 item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
 #.map(lambda x: x[0])
 #return only test users
@@ -98,7 +98,7 @@ def calculate_final_ratings(feats, prod):
     intersection = set(feats.keys()).intersection(prod)
     for f in prod:
         total = total + feats.get(f, 0)
-    return total / (float(len(intersection)) + 0.3)
+    return total / (float(len(intersection)) + 0.5)
 
 #for every test user calculates its model
 #i = 0
