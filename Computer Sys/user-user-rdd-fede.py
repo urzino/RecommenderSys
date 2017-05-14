@@ -49,22 +49,6 @@ test_user_ratings = grouped_rates.filter(is_in_test).sortByKey()
 #test_user_ratings.take(10)
 test_user_ratings.cache()
 
-#find the K-nearest neighbor of the selected user
-def findKNN(k,similarities,user):
-
-    user_sim = similarities.filter(lambda x: x[0]==user).sortBy(lambda x: x[2], ascending=True).map(lambda x: x[1]).collect()
-
-    return user_sim
-
-#parsing file di similarities salvato
-def parse_KNN(line):
-    line_no_simbols = line.replace("(", "").replace(")", "").replace(" ", "")
-    elements = line_no_simbols.split(",")
-    return ((int(elements[0]),int(elements[1]),float(elements[2])))
-
-all_similarities = sc.textFile("users_similarities2.csv")
-similarities_clean = all_similarities.map(parse_KNN)
-
 #for every item all its ratings
 item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))#.sortBy(lambda x: x[1][1], ascending=False)
 #item_ratings.take(10)
@@ -74,29 +58,40 @@ item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_f
 
 #for every test user calculates its model
 #i = 0
+def parse_neighbors(line):
+    line_no_simbols = line.replace('"', "").replace("[", "").replace(" ", "").replace("]","")
+    elements = line_no_simbols.split(",")
+
+    user = elements.pop(0)
+
+    if elements[0]!='':
+        return (int(user),[int(x) for x in elements[:20]])
+    return(int(user),[])
+
+user_neighbors_raw = sc.textFile("losKNN20_1.csv")
+user_neighbors_clean = user_neighbors_raw.map(parse_neighbors)
+collected_user_neighbors_clean=dict(user_neighbors_clean.collect())
+
 f = open('submission2.csv', 'wt')
-try:
-    writer = csv.writer(f)
-    writer.writerow(('userId','RecommendedItemIds'))
-    #i = 0
-    k = 20
-    shrinkage_factor_knn = 20
-    for u in test_user_ratings.toLocalIterator():
-        KNN = findKNN(k,similarities_clean,u[0])
-        already_voted = test_user_ratings.filter(lambda y: u[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
-        items_of_similar_users = grouped_rates.filter(lambda x:x[0] in KNN).flatMap(lambda x: x[1])#.collect()
-        items_ratings_similar = items_of_similar_users.aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))
-        items_ratings_similar_mean = items_ratings_similar.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor_knn))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
-        predictions = items_ratings_similar_mean[:5]
-        iterator = 0
-        for i in range(5 - len(predictions)):
-            while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
-                iterator = iterator + 1
-            predictions = predictions + [item_ratings_mean[iterator]]
-        writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
-        break
-finally:
-    f.close()
+writer = csv.writer(f)
+writer.writerow(('userId','RecommendedItemIds'))
+#i = 0
+k = 20
+shrinkage_factor_knn = 20
+for u in test_user_ratings.toLocalIterator():
+    KNN = collected_user_neighbors_clean[u[0]]
+    already_voted = test_user_ratings.filter(lambda y: u[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
+    items_of_similar_users = grouped_rates.filter(lambda x:x[0] in KNN).flatMap(lambda x: x[1])#.collect()
+    items_ratings_similar = items_of_similar_users.aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))
+    items_ratings_similar_mean = items_ratings_similar.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor_knn))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
+    predictions = items_ratings_similar_mean[:5]
+    iterator = 0
+    for i in range(5 - len(predictions)):
+        while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
+            iterator = iterator + 1
+        predictions = predictions + [item_ratings_mean[iterator]]
+    writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
+f.close()
 
 #15374 utente max
 
