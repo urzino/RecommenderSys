@@ -47,7 +47,7 @@ grouped_rates.cache()
 item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))#.sortBy(lambda x: x[1][1], ascending=False)
 #item_ratings.take(10)
 shrinkage_factor = 50
-item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
+item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor))).sortBy(lambda x: x[1], ascending = False).map(lambda x: (x[1], x[0])).collect()
 #.map(lambda x: x[0])
 #return only test users
 def is_in_test(user):
@@ -114,17 +114,30 @@ for u in test_user_ratings.toLocalIterator():
     dic_user_f_r = dict(user_features_ratings[1])
     #print(dic_user_f_r)
     #remove already voted, calculate products with common features, calculate ratings
-    final_ratings = grouped_features.filter(lambda x: not x[0] in already_voted).filter(lambda x: intersects(dic_user_f_r, x[1])).map(lambda x: (x[0], calculate_final_ratings(dic_user_f_r, x[1])))
+    final_ratings = grouped_features.filter(lambda x: not x[0] in already_voted).filter(lambda x: intersects(dic_user_f_r, x[1])).map(lambda x: (calculate_final_ratings(dic_user_f_r, x[1]), x[0]))
     #predictions = final_ratings.takeOrdered(5, lambda x: -x[1])
-    predictions = final_ratings.sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).take(5)
+    predictions = final_ratings.sortBy(lambda x: x[0], ascending = False).take(5)
     #.map(lambda x: x[0])
     #max_index = my_list.index(max_value)
+    if len(predictions) == 0:
+        predictions = [(0.0,0)]
     iterator = 0
-    for i in range(5 - len(predictions)):
-        while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
-            iterator = iterator + 1
-        predictions = predictions + [item_ratings_mean[iterator]]
-    writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
+    inserted = 0
+    while item_ratings_mean[iterator] > min(predictions):
+        if item_ratings_mean[iterator][1] in already_voted:
+            iterator += 1
+            continue
+        predictions.insert(inserted, item_ratings_mean[iterator])
+        if len(predictions) > 5:
+            predictions.pop(len(predictions) - 1)
+        inserted += 1
+        iterator += 1
+    predictions = sorted(predictions, key=lambda x: -x[0])
+    #for i in range(5 - len(predictions)):
+    #    while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
+    #        iterator = iterator + 1
+    #    predictions = predictions + [item_ratings_mean[iterator]]
+    writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0][1], predictions[1][1], predictions[2][1], predictions[3][1], predictions[4][1])))
     #i+=1
     #print(i)
 
