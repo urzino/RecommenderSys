@@ -17,7 +17,7 @@ def findItemPairs(user_id,items_with_rating):
     For each user, find all item-item pairs combos. (i.e. items with the same user)
     '''
     for item1,item2 in combinations(items_with_rating,2):
-        return (item1[0],item2[0]),(item1[1],item2[1])
+        yield (item1[0],item2[0]),(item1[1],item2[1])
 
 def calcSim(item_pair,rating_pairs):
     '''

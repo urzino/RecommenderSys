@@ -97,12 +97,11 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
     # since an item can exist in more than one item neighborhood
     totals = defaultdict(int)
     sim_sums = defaultdict(int)
-
+    already_voted = grouped_rates_dic[user_id]
     for (item,rating) in items_with_rating:
 
         # lookup the nearest neighbors for this item
         nearest_neighbors = item_sims.get(item,None)
-
         if nearest_neighbors:
             for (neighbor,(sim,count)) in nearest_neighbors:
                 if neighbor != item:
@@ -112,15 +111,21 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
                     sim_sums[neighbor] += sim
 
     # create the normalized list of scored items
-    scored_items = [(total/sim_sums[item],item) for item,total in totals.items() if sim_sums[item] != 0]
+    scored_items = [(total/sim_sums[item],item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
 
     # sort the scored items in ascending order
     scored_items.sort(reverse=True)
 
     # take out the item score
-    # ranked_items = [x[1] for x in scored_items]
+    ranked_items = [x[1] for x in scored_items]
 
-    return user_id,scored_items[:n]
+    return user_id,ranked_items[:n]
+
+def find_already_voted(user_predictions, user_rates):
+    for pred in user_predictions:
+        if pred[1] in user_rates:
+            return False
+    return True
 
 train_rdd = sc.textFile("data/train.csv")
 test_rdd= sc.textFile("data/test.csv")
@@ -135,6 +140,15 @@ users_ratings = train_clean_data.map(lambda x: (x[0], x[2])).aggregateByKey((0,0
 users_ratings_mean = dict(users_ratings.mapValues(lambda x: (x[0] / x[1])).collect())
 
 test_users=test_clean_data.map( lambda x: int(x[0])).collect()
+
+grouped_rates = train_clean_data.filter(lambda x: x[0] in test_users).map(lambda x: (x[0],x[1])).groupByKey().map(lambda x: (x[0], list(x[1]))).collect()
+grouped_rates_dic = dict(grouped_rates)
+
+#for every item all its ratings
+item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))#.sortBy(lambda x: x[1][1], ascending=False)
+#item_ratings.take(10)
+shrinkage_factor = 20
+item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
 
 '''
 Obtain the sparse user-item matrix:
@@ -179,5 +193,23 @@ Calculate the top-N item recommendations for each user
     user_id -> [item1,item2,item3,...]
 '''
 
-user_item_recs = user_item_pairs.map(lambda p: topNRecommendations(p[0],p[1],isb.value,500)).filter(lambda x: x[0] in test_users).collect()
-user_item_recs
+user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,5)).sortByKey().collect()
+
+f = open('submission2.csv', 'wt')
+
+writer = csv.writer(f)
+writer.writerow(('userId','RecommendedItemIds'))
+
+for u in user_item_recs:
+    predictions = u[1]
+    iterator = 0
+    already_voted = grouped_rates_dic[u[0]]
+    for i in range(5 - len(predictions)):
+        while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
+            iterator = iterator + 1
+        predictions = predictions + [item_ratings_mean[iterator]]
+    writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
+    #i+=1
+    #print(i)
+
+f.close()
