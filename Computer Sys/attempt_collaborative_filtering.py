@@ -2,7 +2,7 @@ from pyspark import SparkContext
 from scipy import sparse as sm
 from sklearn.preprocessing import normalize
 import numpy as np
-
+import csv
 sc = SparkContext.getOrCreate()
 
 train_rdd = sc.textFile("data/train.csv")
@@ -67,9 +67,20 @@ a=UxI.nonzero()
 UxI[50,10059]
 
 
-'''asdasasdadasdasdasdas'''''''
+pino=UxI.getrow(4).argmax()
+pino
 
+
+f = open('submission_collaborative.csv', 'wt')
+writer = csv.writer(f)
+writer.writerow(('userId','RecommendedItemIds'))
 for user in test_users:
+    top=[0,0,0,0,0]
 
-    best5=[]
-    predictions=UxI_pred.getrow(user)
+    user_predictions=UxI.getrow(user)
+    for i in range(5):
+        top[i]=user_predictions.argmax()
+
+    writer.writerow((user, '{0} {1} {2} {3} {4}'.format(top[0], top[1], top[2], top[3], top[4])))
+
+f.close()
