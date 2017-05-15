@@ -57,21 +57,19 @@ ratings = train_clean_data.map(lambda x: x[2]-user_ratings_mean_dic[x[0]]).colle
 UxI= sm.csr_matrix((ratings, (users, items)))
 UxI_norm=sm.csr_matrix(normalize(UxI,axis=0))
 IxI_sim=sm.csr_matrix(UxI_norm.T.dot(UxI_norm))
-
-
+IxI_sim.setdiag(0)
 #IxI_sim_norm=sm.csr_matrix(normalize(IxI_sim,axis=1))
-IxI_sim_norm=sm.csr_matrix(normalize(IxI_sim,axis=1))
-UxI_pred=sm.csr_matrix(UxI.dot(IxI_sim_norm))
+#IxI_sim_norm=sm.csr_matrix(normalize(IxI_sim,axis=1))
+UxI_pred=sm.csr_matrix(UxI.dot(IxI_sim))
+UxI.min()
+a=UxI.nonzero()
 
-UxI_pred[5,25307]
-
-sosso=sm.csc_matrix(UxI_pred.getrow(5)).toarray()[0]
-
-
+UxI[50,10059]
 
 
+'''asdasasdadasdasdasdas'''''''
 
+for user in test_users:
 
-for i in range(len(sosso)):
-    if sosso[i]!=0:
-        print(sosso[i])
+    best5=[]
+    predictions=UxI_pred.getrow(user)
