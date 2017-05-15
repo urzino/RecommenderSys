@@ -1,5 +1,6 @@
 from pyspark import SparkContext
 from scipy import sparse as sm
+from sklearn.preprocessing import normalize
 import numpy as np
 
 sc = SparkContext.getOrCreate()
@@ -53,43 +54,24 @@ items = train_clean_data.map(lambda x: x[1]).collect()
 ratings = train_clean_data.map(lambda x: x[2]-user_ratings_mean_dic[x[0]]).collect()
 
 
-
 UxI= sm.csr_matrix((ratings, (users, items)))
-
-IxI_sim=UxI.transpose().dot(UxI)
-
-
+UxI_norm=sm.csr_matrix(normalize(UxI,axis=0))
+IxI_sim=sm.csr_matrix(UxI_norm.T.dot(UxI_norm))
 
 
+#IxI_sim_norm=sm.csr_matrix(normalize(IxI_sim,axis=1))
+IxI_sim_norm=sm.csr_matrix(normalize(IxI_sim,axis=1))
+UxI_pred=sm.csr_matrix(UxI.dot(IxI_sim_norm))
+
+UxI_pred[5,25307]
+
+sosso=sm.csc_matrix(UxI_pred.getrow(5)).toarray()[0]
 
 
-'''items_distinct = train_clean_data.map(lambda x: x[1]).distinct().collect()
-max_item= max(items_distinct)
-max_item
-IxI_sim = sm.lil_matrix((max_item+1,max_item+1))'''
 
-'''
-item_ratings = train_clean_data.map(lambda x: (x[0], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))
-user_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1]))).collect()
-user_ratings_mean_dic=dict(user_ratings_mean)
-max_user= UxI.shape[0]
-max_user
-for item1 in items_distinct:
-    for item2 in items_distinct:
-        if item1!=item2:
-            Col_item1=UxI.getcol(item1)
-            Col_item2=UxI.getcol(item2)
-            Numerator=0
-            Denominator_part1=0
-            Denominator_part2=0
-            for i in range(max_user):
-                if (Col_item1[i,0]!=0 and Col_item2[i,0]!=0):
-                    Num_part1=Col_item1[i,0] - user_ratings_mean_dic[i]
-                    Num_part2=Col_item2[i,0] - user_ratings_mean_dic[i]
-                    Numerator += Num_part1*Num_part2
-                    Denominator_part1 += np.power(Num_part1,2)
-                    Denominator_part2 += np.power(Num_part2,2)
-            IxI_sim[item1,item2]=Numerator/(np.sqrt(Denominator_part1)*np.sqrt(Denominator_part2))
-    break
 
-IxU=U.I.transpose'''
+
+
+for i in range(len(sosso)):
+    if sosso[i]!=0:
+        print(sosso[i])
