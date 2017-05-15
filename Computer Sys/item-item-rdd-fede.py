@@ -73,7 +73,7 @@ def calculate_features_ratings(user_rates):
     item_rates = dict(user_rates[1])
 
     #all items with their features
-    item_features = list(filter(lambda x: item_rates.get(x[0], -1) != -1, grouped_features_array))
+    item_features = list(filter(lambda x: item_rates.get([0]x, -1) != -1, grouped_features_array))
     features_ratings = list()
     for i in range(len(item_features)):
         item = item_features[i][0]
