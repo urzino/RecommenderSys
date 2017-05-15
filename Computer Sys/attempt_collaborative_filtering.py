@@ -6,47 +6,30 @@ import csv
 sc = SparkContext.getOrCreate()
 
 train_rdd = sc.textFile("data/train.csv")
-icm_rdd = sc.textFile("data/icm.csv")
-test_rdd= sc.textFile("data/test.csv")
+test_rdd= sc.textFile("data/target_users.csv")
 
 train_header = train_rdd.first()
-icm_header = icm_rdd.first()
 test_header= test_rdd.first()
 
 train_clean_data = train_rdd.filter(lambda x: x != train_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
-icm_clean_data = icm_rdd.filter(lambda x: x != icm_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1])))
 test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
 
 test_users=test_clean_data.map( lambda x: int(x[0])).collect()
-#test_users=[1,2,3,4]
-#test_users.take(10)
 
-#for every item all its features
-#rouped_features = sc.parallelize([(1,[1,2]),(2,[2,3,4]),(3,[3,4]),(4,[1,2,4])])
-grouped_features = icm_clean_data.map(lambda x: (x[0],x[1])).groupByKey().map(lambda x: (x[0], list(x[1])))
-#grouped_features.take(10)
-grouped_features.cache()
 
-#for every features all its items
-#grouped_items = sc.parallelize([(1,[1,4]),(2,[1,2,4]),(3,[2,3]),(4,[2,3,4])])
-grouped_items = icm_clean_data.map(lambda x: (x[1], x[0])).groupByKey().map(lambda x: (x[0], list(x[1])))
-#grouped_items.take(10)
-grouped_items.cache()
-grouped_items_dic = dict(grouped_items.collect())
+grouped_rates = train_clean_data.filter(lambda x: x[0] in test_users).map(lambda x: (x[0],x[1])).groupByKey().map(lambda x: (x[0], list(x[1]))).collect()
+grouped_rates_dic = dict(grouped_rates)
 
-#for every user all its ratings (item, rate)
-#grouped_rates = sc.parallelize([(1,[(1,8),(3,2)]),(2,[(1,2),(2,9),(3,7)]),(3,[(3,1),(4,10)])])
-grouped_rates = train_clean_data.map(lambda x: (x[0],(x[1], x[2]))).groupByKey().map(lambda x: (x[0], list(x[1])))
-#grouped_rates.take(10)
-grouped_rates.cache()
-
-#for every item all its ratings
-item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))#.sortBy(lambda x: x[1][1], ascending=False)
-#item_ratings.take(10)
 
 item_ratings = train_clean_data.map(lambda x: (x[0], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))
 user_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1]))).collect()
 user_ratings_mean_dic=dict(user_ratings_mean)
+
+
+item_ratings_forTop = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))#.sortBy(lambda x: x[1][1], ascending=False)
+#item_ratings.take(10)
+shrinkage_factor = 20
+item_ratings_mean = item_ratings_forTop.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
 
 
 users = train_clean_data.map(lambda x: x[0]).collect()
@@ -59,27 +42,33 @@ UxI_norm=sm.csr_matrix(normalize(UxI,axis=0))
 IxI_sim=sm.csr_matrix(UxI_norm.T.dot(UxI_norm))
 IxI_sim.setdiag(0)
 #IxI_sim_norm=sm.csr_matrix(normalize(IxI_sim,axis=1))
-#IxI_sim_norm=sm.csr_matrix(normalize(IxI_sim,axis=1))
+
+
+
 UxI_pred=sm.csr_matrix(UxI.dot(IxI_sim))
-UxI.min()
-a=UxI.nonzero()
-
-UxI[50,10059]
-
-
-pino=UxI.getrow(4).argmax()
-pino
-
-
-f = open('submission_collaborative.csv', 'wt')
+f = open('submission_collaborative2.csv', 'wt')
 writer = csv.writer(f)
 writer.writerow(('userId','RecommendedItemIds'))
 for user in test_users:
     top=[0,0,0,0,0]
 
     user_predictions=UxI.getrow(user)
+    iterator = 0
     for i in range(5):
-        top[i]=user_predictions.argmax()
+        prediction = user_predictions.argmax()
+        while prediction in grouped_rates_dic[user] and prediction != 0:
+            user_predictions[0,prediction]=-9
+            prediction=user_predictions.argmax()
+        if prediction == 0:
+            prediction = item_ratings_mean[iterator]
+            while prediction in grouped_rates_dic[user] or prediction in top:
+                iterator += 1
+                prediction = item_ratings_mean[iterator]
+            iterator += 1
+        else:
+            user_predictions[0,prediction]=-9
+        top[i]=prediction
+
 
     writer.writerow((user, '{0} {1} {2} {3} {4}'.format(top[0], top[1], top[2], top[3], top[4])))
 
