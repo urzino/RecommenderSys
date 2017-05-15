@@ -116,9 +116,9 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
     scored_items.sort(reverse=True)
 
     # take out the item score
-    #ranked_items = [x[1] for x in scored_items]
+    ranked_items = [x[1] for x in scored_items]
 
-    return user_id,scored_items[:n]
+    return user_id,ranked_items[:n]
 
 def find_already_voted(user_predictions, user_rates):
     for pred in user_predictions:
@@ -127,7 +127,7 @@ def find_already_voted(user_predictions, user_rates):
     return True
 
 train_rdd = sc.textFile("data/train.csv")
-test_rdd= sc.textFile("data/test.csv")
+test_rdd= sc.textFile("data/target_users.csv")
 
 train_header = train_rdd.first()
 test_header= test_rdd.first()
@@ -193,7 +193,7 @@ Calculate the top-N item recommendations for each user
 '''
 
 user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,5)).sortByKey().collect()
-user_item_recs[:5]
+
 f = open('submission2.csv', 'wt')
 
 writer = csv.writer(f)
