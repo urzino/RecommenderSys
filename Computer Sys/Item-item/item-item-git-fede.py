@@ -29,8 +29,10 @@ def findItemPairs(user_id,items_with_rating):
     '''
     For each user, find all item-item pairs combos. (i.e. items with the same user)
     '''
+    result = list()
     for item1,item2 in combinations(items_with_rating,2):
-        return (item1[0],item2[0]),(item1[1],item2[1])
+        result += [((item1[0],item2[0]),(item1[1],item2[1]))]
+    return result
 
 def calcSim(item_pair,rating_pairs):
     '''
@@ -116,8 +118,8 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
     scored_items.sort(reverse=True)
 
     # take out the item score
-    ranked_items = [x[1] for x in scored_items]
-
+    #ranked_items = [x[1] for x in scored_items]
+    ranked_items = scored_items
     return user_id,ranked_items[:n]
 
 def find_already_voted(user_predictions, user_rates):
@@ -126,8 +128,8 @@ def find_already_voted(user_predictions, user_rates):
             return False
     return True
 
-train_rdd = sc.textFile("data/train.csv")
-test_rdd= sc.textFile("data/target_users.csv")
+train_rdd = sc.textFile("../data/train.csv")
+test_rdd= sc.textFile("../data/target_users.csv")
 
 train_header = train_rdd.first()
 test_header= test_rdd.first()
@@ -165,7 +167,7 @@ Get all item-item pair combos:
 '''
 
 pairwise_items = user_item_pairs.filter(
-    lambda p: len(p[1]) > 1).map(
+    lambda p: len(p[1]) > 1).flatMap(
     lambda p: findItemPairs(p[0],p[1])).groupByKey()
 
 '''
@@ -192,9 +194,9 @@ Calculate the top-N item recommendations for each user
     user_id -> [item1,item2,item3,...]
 '''
 
-user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,5)).sortByKey().collect()
+user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,500)).sortByKey().collect()
 
-f = open('submission2.csv', 'wt')
+f = open('../submission2.csv', 'wt')
 
 writer = csv.writer(f)
 writer.writerow(('userId','RecommendedItemIds'))
