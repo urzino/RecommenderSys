@@ -38,15 +38,28 @@ ratings = train_clean_data.map(lambda x: x[2]-user_ratings_mean_dic[x[0]]).colle
 
 
 UxI= sm.csr_matrix((ratings, (users, items)))
+
+
+
+#tipo 1
 UxI_norm=sm.csr_matrix(normalize(UxI,axis=0))
 IxI_sim=sm.csr_matrix(UxI_norm.T.dot(UxI_norm))
 IxI_sim.setdiag(0)
-#IxI_sim_norm=sm.csr_matrix(normalize(IxI_sim,axis=1))
-
-
-
 UxI_pred=sm.csr_matrix(UxI.dot(IxI_sim))
-f = open('submission_collaborative2.csv', 'wt')
+
+
+#tipo 2
+
+UxI_norm=sm.csr_matrix(normalize(UxI,axis=1))
+UxU_sim=sm.csr_matrix(UxI_norm.dot(UxI_norm.T))
+UxU_sim.setdiag(0)
+UxI_pred=sm.csr_matrix(UxU_sim.dot(UxI))
+
+
+
+
+
+f = open('submission_collaborative3.csv', 'wt')
 writer = csv.writer(f)
 writer.writerow(('userId','RecommendedItemIds'))
 for user in test_users:
