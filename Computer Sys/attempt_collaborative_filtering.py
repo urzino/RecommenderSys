@@ -55,11 +55,44 @@ IxI_sim.setdiag(0)
 UxI_pred=UxI.dot(IxI_sim)
 
 
+
+
+
+UxI_prep=[[2.5,-1.5,0,-0.5,-0.5],
+     [-2.6,1.4,-1.6,1.4,1.4],
+     [-1.5,0,-0.5,1.5,0.5],
+     [0.25,-0.75,1.25,-0.75,0]]
+
+UxI=sm.csr_matrix(UxI_prep)
+
+UxI.shape
+
+a=UxI.getrow(0).toarray()[0]
+b=UxI.getrow(1).toarray()[0]
+a
+num=0
+denpt1=0
+denpt2=0
+for i in range(len(a)):
+    if a[i]!=0 and b[i]!=0:
+
+        num+=a[i]*b[i]
+        denpt1+=np.power(a[i],2)
+        denpt2+=np.power(b[i],2)
+
+sim=num/(np.sqrt(denpt1)*np.sqrt(denpt2))
+sim
+
 #tipo 2 user based
-UxI_norm=normalize(UxI,axis=0)
+UxI_norm=normalize(UxI,axis=1)
 UxU_sim=UxI_norm.dot(UxI_norm.T)
 UxU_sim.setdiag(0)
 UxI_pred=UxU_sim.dot(UxI)
+
+UxU_sim.toarray()
+
+
+
 
 #3 remake of content-based
 UxF=UxI_pred.dot(IxF)
