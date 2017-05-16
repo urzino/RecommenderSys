@@ -68,8 +68,8 @@ UxI_pred=UxF.dot(IxF.T)
 
 UxI_pred.getrow(23).arg()
 
-
-f = open('submission_collaborative_ub_cb.csv', 'wt')
+c=0
+f = open('submission_collaborative_ub1.csv', 'wt')
 writer = csv.writer(f)
 writer.writerow(('userId','RecommendedItemIds'))
 for user in test_users:
@@ -91,8 +91,8 @@ for user in test_users:
         else:
             user_predictions[0,prediction]=-9
         top[i]=prediction
-
-
+    c+=1
+    print(c)
     writer.writerow((user, '{0} {1} {2} {3} {4}'.format(top[0], top[1], top[2], top[3], top[4])))
 
 f.close()
