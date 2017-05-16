@@ -49,26 +49,27 @@ IxF= sm.csr_matrix((unos, (items_for_features, features)))
 
 
 #tipo 1tem bases
-UxI_norm=normalize(UxI,axis=0)
+UxI_norm=normalize(UxI,axis=1)
 IxI_sim=UxI_norm.T.dot(UxI_norm)
 IxI_sim.setdiag(0)
 UxI_pred=UxI.dot(IxI_sim)
 
 
 #tipo 2 user based
-UxI_norm=normalize(UxI,axis=1)
+UxI_norm=normalize(UxI,axis=0)
 UxU_sim=UxI_norm.dot(UxI_norm.T)
 UxU_sim.setdiag(0)
 UxI_pred=UxU_sim.dot(UxI)
 
 #3 remake of content-based
-UxF=UxI.dot(IxF)
+UxF=UxI_pred.dot(IxF)
 UxF_norm=normalize(UxF,axis=1)
 UxI_pred=UxF.dot(IxF.T)
 
+UxI_pred.getrow(23).arg()
 
 
-f = open('submission_collaborative5.csv', 'wt')
+f = open('submission_collaborative_ub_cb.csv', 'wt')
 writer = csv.writer(f)
 writer.writerow(('userId','RecommendedItemIds'))
 for user in test_users:
