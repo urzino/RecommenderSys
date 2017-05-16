@@ -6,12 +6,15 @@ import csv
 sc = SparkContext.getOrCreate()
 
 train_rdd = sc.textFile("data/train.csv")
+icm_rdd = sc.textFile("data/icm.csv")
 test_rdd= sc.textFile("data/target_users.csv")
 
 train_header = train_rdd.first()
+icm_header = icm_rdd.first()
 test_header= test_rdd.first()
 
 train_clean_data = train_rdd.filter(lambda x: x != train_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
+icm_clean_data = icm_rdd.filter(lambda x: x != icm_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1])))
 test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
 
 test_users=test_clean_data.map( lambda x: int(x[0])).collect()
@@ -36,36 +39,42 @@ users = train_clean_data.map(lambda x: x[0]).collect()
 items = train_clean_data.map(lambda x: x[1]).collect()
 ratings = train_clean_data.map(lambda x: x[2]-user_ratings_mean_dic[x[0]]).collect()
 
+items_for_features= icm_clean_data.map(lambda x:x[0]).collect()
+features = icm_clean_data.map(lambda x:x[1]).collect()
+
+unos=[1]*len(items_for_features)
 
 UxI= sm.csr_matrix((ratings, (users, items)))
+IxF= sm.csr_matrix((unos, (items_for_features, features)))
 
 
-
-#tipo 1
-UxI_norm=sm.csr_matrix(normalize(UxI,axis=0))
-IxI_sim=sm.csr_matrix(UxI_norm.T.dot(UxI_norm))
+#tipo 1tem bases
+UxI_norm=normalize(UxI,axis=0)
+IxI_sim=UxI_norm.T.dot(UxI_norm)
 IxI_sim.setdiag(0)
-UxI_pred=sm.csr_matrix(UxI.dot(IxI_sim))
+UxI_pred=UxI.dot(IxI_sim)
 
 
-#tipo 2
-
-UxI_norm=sm.csr_matrix(normalize(UxI,axis=1))
-UxU_sim=sm.csr_matrix(UxI_norm.dot(UxI_norm.T))
+#tipo 2 user based
+UxI_norm=normalize(UxI,axis=1)
+UxU_sim=UxI_norm.dot(UxI_norm.T)
 UxU_sim.setdiag(0)
-UxI_pred=sm.csr_matrix(UxU_sim.dot(UxI))
+UxI_pred=UxU_sim.dot(UxI)
+
+#3 remake of content-based
+UxF=UxI.dot(IxF)
+UxF_norm=normalize(UxF,axis=1)
+UxI_pred=UxF.dot(IxF.T)
 
 
 
-
-
-f = open('submission_collaborative3.csv', 'wt')
+f = open('submission_collaborative5.csv', 'wt')
 writer = csv.writer(f)
 writer.writerow(('userId','RecommendedItemIds'))
 for user in test_users:
     top=[0,0,0,0,0]
 
-    user_predictions=UxI.getrow(user)
+    user_predictions=UxI_pred.getrow(user)
     iterator = 0
     for i in range(5):
         prediction = user_predictions.argmax()
