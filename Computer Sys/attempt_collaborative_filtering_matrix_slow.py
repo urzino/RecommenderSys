@@ -4,7 +4,7 @@ from sklearn.preprocessing import normalize
 import numpy as np
 import csv
 from sklearn.metrics.pairwise import cosine_similarity
-
+from scipy.stats import pearsonr as pears
 sc = SparkContext.getOrCreate()
 
 train_rdd = sc.textFile("data/train.csv")
@@ -68,7 +68,14 @@ IxI_sim=UxI_norm.T.dot(UxI_norm)
 IxI_sim.setdiag(0)
 UxI_pred=UxI.dot(IxI_sim)
 
+'''UxI_prep=[[2.5,-1.5,0,-0.5,-0.5],
+         [-2.6,1.4,-1.6,1.4,1.4],
+         [-1.5,0,-0.5,1.5,0.5],
+         [0.25,-0.75,1.25,-0.75,0]]
 
+UxI=sm.csr_matrix(UxI_prep)
+terms = set(UxI.getrow(0).nonzero()[1]).intersection(UxI.getrow(1).nonzero()[1])
+terms'''
 #tipo 2 user based
 UxU_sim=UxI.dot(UxI.T)
 UxI_lil=UxI.tolil()
@@ -87,6 +94,9 @@ for i in range(nruser):
     print(teta)
 UxU_sim.setdiag(0)
 
+
+
+UxU_sim_lil.toarray()
 
 
 #aggiungere di nuovo la media agli UxI tolta prima, o non toglierla e creare un coso tolta poi applicare formulina magica di prima
