@@ -3,6 +3,8 @@ from scipy import sparse as sm
 from sklearn.preprocessing import normalize
 import numpy as np
 import csv
+from sklearn.metrics.pairwise import cosine_similarity
+
 sc = SparkContext.getOrCreate()
 
 train_rdd = sc.textFile("data/train.csv")
@@ -48,6 +50,18 @@ UxI= sm.csr_matrix((ratings, (users, items)))
 IxF= sm.csr_matrix((unos, (items_for_features, features)))
 
 
+def calcden(a,b):
+    denpt1=0
+    denpt2=0
+    for t in range(len(a)):
+        if a[t]!=0 and b[t]!=0:
+            denpt1+=np.power(a[t],2)
+            denpt2+=np.power(b[t],2)
+    return np.sqrt(denpt1)*np.sqrt(denpt2)
+
+
+
+
 #tipo 1tem bases
 UxI_norm=normalize(UxI,axis=1)
 IxI_sim=UxI_norm.T.dot(UxI_norm)
@@ -55,38 +69,26 @@ IxI_sim.setdiag(0)
 UxI_pred=UxI.dot(IxI_sim)
 
 
-
-
-
-UxI_prep=[[2.5,-1.5,0,-0.5,-0.5],
-     [-2.6,1.4,-1.6,1.4,1.4],
-     [-1.5,0,-0.5,1.5,0.5],
-     [0.25,-0.75,1.25,-0.75,0]]
-
-UxI=sm.csr_matrix(UxI_prep)
-
-UxI.shape
-
-a=UxI.getrow(0).toarray()[0]
-b=UxI.getrow(1).toarray()[0]
-a
-num=0
-denpt1=0
-denpt2=0
-for i in range(len(a)):
-    if a[i]!=0 and b[i]!=0:
-
-        num+=a[i]*b[i]
-        denpt1+=np.power(a[i],2)
-        denpt2+=np.power(b[i],2)
-
-sim=num/(np.sqrt(denpt1)*np.sqrt(denpt2))
-sim
-
 #tipo 2 user based
-UxI_norm=normalize(UxI,axis=1)
-UxU_sim=UxI_norm.dot(UxI_norm.T)
+UxU_sim=UxI.dot(UxI.T)
+UxI_lil=UxI.tolil()
+UxU_sim_lil=UxU_sim.tolil()
+nruser=UxU_sim.shape[0]
+for i in range(nruser):
+    for j in range(nruser):
+        den=(calcden(UxI_lil.getrow(i).toarray()[0],UxI_lil.getrow(j).toarray()[0]))
+        if den!=0:
+            UxU_sim_lil[i,j]/=den
 UxU_sim.setdiag(0)
+
+
+
+
+#aggiungere di nuovo la media agli UxI tolta prima, o non toglierla e creare un coso tolta poi applicare formulina magica di prima
+for i in users:
+    for k in range(UxI.shape[1]):
+        UxI.getrow(i)+user_ratings_mean_dic[i]
+
 UxI_pred=UxU_sim.dot(UxI)
 
 UxU_sim.toarray()
@@ -99,7 +101,6 @@ UxF=UxI_pred.dot(IxF)
 UxF_norm=normalize(UxF,axis=1)
 UxI_pred=UxF.dot(IxF.T)
 
-UxI_pred.getrow(23).arg()
 
 c=0
 f = open('submission_collaborative_ub1.csv', 'wt')
@@ -129,3 +130,22 @@ for user in test_users:
     writer.writerow((user, '{0} {1} {2} {3} {4}'.format(top[0], top[1], top[2], top[3], top[4])))
 
 f.close()
+
+
+
+a=UxI.getrow(0).toarray()[0]
+b=UxI.getrow(1).toarray()[0]
+a
+b
+num=0
+denpt1=0
+denpt2=0
+for i in range(len(a)):
+    if a[i]!=0 and b[i]!=0:
+
+        num+=a[i]*b[i]
+        denpt1+=np.power(a[i],2)
+        denpt2+=np.power(b[i],2)
+
+sim=num/(np.sqrt(denpt1)*np.sqrt(denpt2))
+sim
