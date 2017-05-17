@@ -8,7 +8,7 @@ from scipy.stats import pearsonr as pears
 sc = SparkContext.getOrCreate()
 
 train_rdd = sc.textFile("data/train.csv")
-icm_rdd = sc.textFile("data/icm.csv")
+icm_rdd = sc.textFile("data/icm_fede.csv")
 test_rdd= sc.textFile("data/target_users.csv")
 
 train_header = train_rdd.first()
@@ -43,6 +43,9 @@ ratings = train_clean_data.map(lambda x: x[2]-user_ratings_mean_dic[x[0]]).colle
 
 items_for_features= icm_clean_data.map(lambda x:x[0]).collect()
 features = icm_clean_data.map(lambda x:x[1]).collect()
+items_for_features.append(37142)
+features.append(0)
+
 
 unos=[1]*len(items_for_features)
 
@@ -62,13 +65,17 @@ IxF=[[1,0,1,0,1],
 UxI=sm.csr_matrix(UxI)
 IxF=sm.csr_matrix(IxF)
 '''
-len(IxF.getrow(2).nonzero()[1])
+
 IxF_normalized=normalize(IxF,axis=1)
-IxF.shape
 NumFeatures=IxF.shape[1]
 NumFeatures
+IDF=[0]*NumFeatures
+for i in range(NumFeatures):
+    IDF[i]=np.log10(10/len(IxF.getcol(i).nonzero()[1]))
 
 
+
+UxF=UxI.dot(IxF_normalized)
 FxI=IxF_normalized.multiply(IDF).T
 
 UxI_pred=UxF.dot(FxI)
@@ -80,11 +87,8 @@ UxI_pred=UxF.dot(FxI)
 
 
 
-
-
-
 c=0
-f = open('submission_collaborative_ub1.csv', 'wt')
+f = open('submission_content_based_V2.csv', 'wt')
 writer = csv.writer(f)
 writer.writerow(('userId','RecommendedItemIds'))
 for user in test_users:
