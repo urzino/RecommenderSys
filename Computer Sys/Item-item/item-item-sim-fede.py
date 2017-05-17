@@ -84,5 +84,4 @@ Calculate the cosine similarity for each item pair
 '''
 
 item_sims = pairwise_items.map(
-    lambda p: calcSim(p[0],p[1])).saveAsTextFile("item-sims-fede.csv")
-item_sims[:50]
+    lambda p: calcSim(p[0],p[1])).saveAsTextFile("item-item-sims-fede.csv")
