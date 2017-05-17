@@ -71,13 +71,15 @@ def calcSim(item_pair,rating_pairs):
     cos_sim = cosine(sum_xy,np.sqrt(sum_xx),np.sqrt(sum_yy))
     return item_pair, (cos_sim,n)
 
+shrinkage_factor_cosine = 5
+
 def cosine(dot_product,rating_norm_squared,rating2_norm_squared):
     '''
     The cosine between two vectors A, B
        dotProduct(A, B) / (norm(A) * norm(B))
     '''
     numerator = dot_product
-    denominator = rating_norm_squared * rating2_norm_squared
+    denominator = rating_norm_squared * rating2_norm_squared + shrinkage_factor_cosine
     return (numerator / (float(denominator))) if denominator else 0.0
 
 def correlation(size, dot_product, rating_sum, \
@@ -131,7 +133,7 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
                     sim_sums[neighbor] += sim
 
     # create the normalized list of scored items
-    scored_items = [(total/(sim_sums[item] + 5) + users_ratings_mean[user_id],item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
+    scored_items = [(total/sim_sums[item] + users_ratings_mean[user_id],item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
 
     # sort the scored items in ascending order
     scored_items.sort(reverse=True)

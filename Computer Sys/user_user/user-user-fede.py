@@ -65,13 +65,15 @@ def calcSim(user_pair,rating_pairs):
     cos_sim = cosine(sum_xy,np.sqrt(sum_xx),np.sqrt(sum_yy))
     return user_pair, (cos_sim,n)
 
+shrinkage_factor_cosine = 5
+
 def cosine(dot_product,rating_norm_squared,rating2_norm_squared):
     '''
     The cosine between two vectors A, B
        dotProduct(A, B) / (norm(A) * norm(B))
     '''
     numerator = dot_product
-    denominator = rating_norm_squared * rating2_norm_squared
+    denominator = rating_norm_squared * rating2_norm_squared + shrinkage_factor_cosine
 
     return (numerator / (float(denominator))) if denominator else 0.0
 
