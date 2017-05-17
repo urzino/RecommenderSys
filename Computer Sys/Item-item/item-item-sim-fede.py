@@ -16,8 +16,10 @@ def findItemPairs(user_id,items_with_rating):
     '''
     For each user, find all item-item pairs combos. (i.e. items with the same user)
     '''
+    result = list()
     for item1,item2 in combinations(items_with_rating,2):
-        yield (item1[0],item2[0]),(item1[1],item2[1])
+        result += [((item1[0],item2[0]),(item1[1],item2[1]))]
+    return result
 
 def calcSim(item_pair,rating_pairs):
     '''
@@ -50,7 +52,7 @@ def cosine(dot_product,rating_norm_squared,rating2_norm_squared):
     return (numerator / (float(denominator))) if denominator else 0.0
 
 
-train_rdd = sc.textFile("data/train.csv")
+train_rdd = sc.textFile("../data/train.csv")
 train_header = train_rdd.first()
 
 train_clean_data = train_rdd.filter(lambda x: x != train_header).map(parseVector)
@@ -73,7 +75,7 @@ Get all item-item pair combos
 '''
 
 pairwise_items = user_item_pairs.filter(
-    lambda p: len(p[1]) > 1).map(
+    lambda p: len(p[1]) > 1).flatMap(
     lambda p: findItemPairs(p[0],p[1])).groupByKey()
 
 '''
@@ -82,5 +84,4 @@ Calculate the cosine similarity for each item pair
 '''
 
 item_sims = pairwise_items.map(
-    lambda p: calcSim(p[0],p[1])).collect()
-item_sims[:50]
+    lambda p: calcSim(p[0],p[1])).saveAsTextFile("item-item-sims-fede.csv")
