@@ -3,6 +3,7 @@ from itertools import combinations
 import random
 import numpy as np
 import pdb
+import csv
 from pyspark import SparkContext
 
 
@@ -139,7 +140,6 @@ test_header= test_rdd.first()
 
 train_clean_data = train_rdd.filter(lambda x: x != train_header).map(parseVector)
 test_clean_data = test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
-
 #train_clean_data = sc.parallelize([(1,1,2.5),(1,2,-1.5),(1,4,-0.5),(1,5,-0.5),(2,1,-2.6),(2,2,1.4),(2,3,-1.6),(2,4,1.4),(2,5,1.4),(3,1,-1.5),(3,3,-0.5),(3,4,1.5),(3,5,0.5),(4,1,0.25),(4,2,-0.75),(4,3,1.25),(4,4,-0.75)])
 
 train_clean_data.cache()
@@ -155,7 +155,7 @@ users_ratings = train_clean_data.map(lambda x: (x[0], x[2])).aggregateByKey((0,0
 users_ratings_mean = dict(users_ratings.mapValues(lambda x: (x[0] / x[1])).collect())
 
 item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))#.sortBy(lambda x: x[1][1], ascending=False)
-shrinkage_factor = 20
+shrinkage_factor = 10
 item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
 
 
@@ -191,22 +191,25 @@ uib = sc.broadcast(ui_dict)
 
 #Calculate the top-N item recommendations for each user user_id -> [item1,item2,item3,...]
 user_item_recs = user_sims.filter(lambda x: x[0] in test_users).map(
-    lambda p: topNRecommendations(p[0],p[1],uib.value,100)).sortByKey().collect()
+    lambda p: topNRecommendations(p[0],p[1],uib.value,5)).sortByKey().collect()
 
-f = open('../submission2.csv', 'wt')
+recs_dict = dict(user_item_recs)
+
+f = open('../submission3.csv', 'wt')
 
 writer = csv.writer(f)
 writer.writerow(('userId','RecommendedItemIds'))
 
-for u in user_item_recs:
-    predictions = u[1]
+for u in test_users:
+
+    predictions = recs_dict.get(u, [])
     iterator = 0
-    already_voted = grouped_rates_dic[u[0]]
+    already_voted = grouped_rates_dic[u]
     for i in range(5 - len(predictions)):
         while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
             iterator = iterator + 1
         predictions = predictions + [item_ratings_mean[iterator]]
-    writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
+    writer.writerow((u, '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
     #i+=1
     #print(i)
 
