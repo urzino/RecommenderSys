@@ -74,11 +74,14 @@ UxU_sim=UxI.dot(UxI.T)
 UxI_lil=UxI.tolil()
 UxU_sim_lil=UxU_sim.tolil()
 nruser=UxU_sim.shape[0]
+teta=0
 for i in range(nruser):
     for j in range(nruser):
         den=(calcden(UxI_lil.getrow(i).toarray()[0],UxI_lil.getrow(j).toarray()[0]))
         if den!=0:
             UxU_sim_lil[i,j]/=den
+    teta+=1
+    print(teta)        
 UxU_sim.setdiag(0)
 
 
