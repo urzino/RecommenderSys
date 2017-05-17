@@ -131,7 +131,7 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
                     sim_sums[neighbor] += sim
 
     # create the normalized list of scored items
-    scored_items = [(total/sim_sums[item] + users_ratings_mean[user_id],item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
+    scored_items = [(total/(sim_sums[item] + 5) + users_ratings_mean[user_id],item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
 
     # sort the scored items in ascending order
     scored_items.sort(reverse=True)
@@ -159,6 +159,11 @@ train_clean_data = train_rdd.filter(lambda x: x != train_header).map(parseVector
 test_clean_data = test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
 features_clean_data = features_ratings_rdd.map(parseFeatures)
 similarities_clean_data = similarities_rdd.map(parseSimilarities)
+
+train_clean_data.cache()
+test_clean_data.cache()
+features_clean_data.cache()
+similarities_clean_data.cache()
 
 users_ratings = train_clean_data.map(lambda x: (x[0], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))
 users_ratings_mean = dict(users_ratings.mapValues(lambda x: (x[0] / x[1])).collect())
@@ -198,8 +203,7 @@ Calculate the cosine similarity for each item pair and select the top-N nearest 
 '''
 
 item_sims = pairwise_items.map(
-    lambda p: calcSim(p[0],p[1])).map(
-    lambda p: keyOnFirstItem(p[0],p[1])).groupByKey().map(lambda p: nearestNeighbors(p[0],list(p[1]),50)).collect()
+    lambda p: calcSim(p[0],p[1])).map(lambda p: keyOnFirstItem(p[0],p[1])).groupByKey().map(lambda p: nearestNeighbors(p[0],list(p[1]),50)).collect()
 
 '''
 Preprocess the item similarity matrix into a dictionary and store it as a broadcast variable:
@@ -218,6 +222,7 @@ Calculate the top-N item recommendations for each user
 
 user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,500)).sortByKey().collect()
 user_item_recs[2]
+
 f = open('../submission2.csv', 'wt')
 
 writer = csv.writer(f)
