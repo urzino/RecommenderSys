@@ -133,7 +133,7 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
                     sim_sums[neighbor] += sim
 
     # create the normalized list of scored items
-    scored_items = [(total/sim_sums[item] + users_ratings_mean[user_id],item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
+    scored_items = [(total/sim_sums[item],item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
 
     # sort the scored items in ascending order
     scored_items.sort(reverse=True)
@@ -180,36 +180,22 @@ item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0)
 shrinkage_factor = 20
 item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
 
-'''
-Obtain the sparse user-item matrix:
-    user_id -> [(item_id_1, rating_1),
-               [(item_id_2, rating_2),
-                ...]
-'''
+#Obtain the sparse user-item matrix: user_id -> [(item_id_1, rating_1),  [(item_id_2, rating_2),
+
 user_item_pairs = train_clean_data.map(lambda x: (x[0], (x[1], x[2] - users_ratings_mean[x[0]]))).groupByKey().map(lambda p: sampleInteractions(p[0],list(p[1]),500)).cache()
 
-'''
-Get all item-item pair combos:
-    (item1,item2) ->    [(item1_rating,item2_rating),
-                         (item1_rating,item2_rating),
-                         ...]
-'''
+#Get all item-item pair combos: (item1,item2) ->    [(item1_rating,item2_rating),(item1_rating,item2_rating),
 
 pairwise_items = user_item_pairs.filter(
     lambda p: len(p[1]) > 1).flatMap(
     lambda p: findItemPairs(p[0],p[1])).groupByKey()
 
-'''
-Calculate the cosine similarity for each item pair and select the top-N nearest neighbors:
-    (item1,item2) ->    (similarity,co_raters_count)
-'''
+#Calculate the cosine similarity for each item pair and select the top-N nearest neighbors:(item1,item2) ->    (similarity,co_raters_count)
 
 item_sims = pairwise_items.map(
     lambda p: calcSim(p[0],p[1])).map(lambda p: keyOnFirstItem(p[0],p[1])).groupByKey().map(lambda p: nearestNeighbors(p[0],list(p[1]),50)).collect()
 
-'''
-Preprocess the item similarity matrix into a dictionary and store it as a broadcast variable:
-'''
+#Preprocess the item similarity matrix into a dictionary and store it as a broadcast variable:
 
 item_sim_dict = {}
 for (item,data) in item_sims:
@@ -217,10 +203,7 @@ for (item,data) in item_sims:
 
 isb = sc.broadcast(item_sim_dict)
 
-'''
-Calculate the top-N item recommendations for each user
-    user_id -> [item1,item2,item3,...]
-'''
+#Calculate the top-N item recommendations for each user user_id -> [item1,item2,item3,...]
 
 user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,500)).sortByKey().collect()
 user_item_recs[2]
