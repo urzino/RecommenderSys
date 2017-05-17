@@ -3,13 +3,14 @@ import csv
 from scipy import linalg, sparse
 import numpy as np
 from itertools import groupby
+from functools import reduce
 from operator import itemgetter
 
 sc = SparkContext.getOrCreate()
 
 train_rdd = sc.textFile("../data/train.csv")
 icm_rdd = sc.textFile("../data/icm_fede.csv")
-test_rdd= sc.textFile("../data/test.csv")
+test_rdd= sc.textFile("../data/target_users.csv")
 
 train_header = train_rdd.first()
 icm_header = icm_rdd.first()
@@ -28,6 +29,11 @@ test_users=test_clean_data.map( lambda x: int(x[0])).collect()
 grouped_features = icm_clean_data.map(lambda x: (x[0],x[1])).groupByKey().map(lambda x: (x[0], list(x[1])))
 #grouped_features.take(10)
 grouped_features.cache()
+total_items = grouped_features.count()
+grouped_features_arr = grouped_features.collect()
+grouped_features_dic = sc.broadcast(dict(grouped_features.collect()))
+
+tf_grouped_features = sc.broadcast(dict(grouped_features.map(lambda x: (x[0], x[1], 1/ np.sqrt(len(x[1])))).map(lambda x: (x[0], [(item, x[2]) for item in x[1]])).collect()))
 
 #for every features all its items
 #grouped_items = sc.parallelize([(1,[1,4]),(2,[1,2,4]),(3,[2,3]),(4,[2,3,4])])
@@ -36,16 +42,16 @@ grouped_items = icm_clean_data.map(lambda x: (x[1], x[0])).groupByKey().map(lamb
 grouped_items.cache()
 grouped_items_dic = dict(grouped_items.collect())
 
+idf_features = sc.broadcast(dict(grouped_items.map(lambda x: (x[0], np.log10(total_items / len(x[1])))).collect()))
 #for every user all its ratings (item, rate)
 #grouped_rates = sc.parallelize([(1,[(1,8),(3,2)]),(2,[(1,2),(2,9),(3,7)]),(3,[(3,1),(4,10)])])
 grouped_rates = train_clean_data.map(lambda x: (x[0],(x[1], x[2]))).groupByKey().map(lambda x: (x[0], list(x[1])))
-#grouped_rates.take(10)
 grouped_rates.cache()
 
 #for every item all its ratings
 item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))#.sortBy(lambda x: x[1][1], ascending=False)
 #item_ratings.take(10)
-shrinkage_factor = 20
+shrinkage_factor = 10
 item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
 #.map(lambda x: x[0])
 #return only test users
@@ -53,54 +59,42 @@ def is_in_test(user):
     return user[0] in test_users
 
 test_user_ratings = grouped_rates.filter(is_in_test).sortByKey()
-#test_user_ratings.take(10)
 test_user_ratings.cache()
 
-#returns mean of a list using tf/idf for every feature
-def mean_ratings_2(rates):
-    return sum(rates[1]) * float(len(rates[1])) / len(grouped_items_dic[rates[0]])
+test_voted_items = test_user_ratings.map(lambda x: (x[0], [item for item, rate in x[1]])).collect()
+test_voted_items_dic = dict(test_voted_items)
 
-#returns mean of a list of ratings for a feature
-def mean_ratings(rates):
-    return sum(rates) / float(len(rates))
+test_user_features = grouped_rates.map(lambda x: (x[0], [grouped_features_dic.value.get(item, []) for item, rating in x[1]])).map(lambda x: (x[0], set(reduce(lambda x,y: x+y, x[1]))))
+test_user_features_dic = sc.broadcast(dict(test_user_features.collect()))
 
-grouped_features_array = grouped_features.collect()
+#test_user_features_dic.value
+def calculate_ratings(user_rates):
+    user_id = user_rates[0]
+    i_rates = user_rates[1]
+    result = list()
+    for item, rating in i_rates:
+        result += list(map(lambda x: (x[0], rating * x[1]), tf_grouped_features.value.get(item, [])))
+    result.sort(key = lambda x: x[0])
+    result = [(x,sum([z[1] for z in y])) for x,y in groupby(result, itemgetter(0))]
+    return (user_id, result)
 
-#returns all the features voted by the user
-def calculate_features_ratings(user_rates):
-    user = user_rates[0]
-    item_rates = dict(user_rates[1])
+def calculate_final_percentages(user_tf):
+    user_id = user_tf[0]
+    result = list()
+    fs_dic = dict(user_tf[1])
+    already_voted = test_voted_items_dic.get(user_id, [])
+    items = filter(lambda x: x[0] not in already_voted and len(set(x[1]).intersection(test_user_features_dic.value[user_id])) > 0, grouped_features_arr)
+    for item, fs in items:
+        tf_dic = dict(tf_grouped_features.value[item])
+        result += [(item, sum([fs_dic.get(f, 0) * idf_features.value.get(f,0) * tf_dic.get(f, 0) for f in fs]))]
+    result.sort(key = lambda x: -x[1])
+    result = list(map(lambda x: x[0], result))
+    return (user_id, result[:5])
 
-    #all items with their features
-    item_features = list(filter(lambda x: item_rates.get([0]x, -1) != -1, grouped_features_array))
-    features_ratings = list()
-    for i in range(len(item_features)):
-        item = item_features[i][0]
-        temp = item_features[i][1]
-        features_ratings = features_ratings + list(map(lambda x: (x, item_rates[item]), temp))
-
-    #all features with their ratings
-    features_ratings = sorted(features_ratings, key=lambda x: x[0])
-    features_ratings = [(x,list(map(itemgetter(1),y))) for x,y in groupby(features_ratings, itemgetter(0))]
-    result = list(map(lambda x: (x[0], mean_ratings(x[1])),features_ratings))
-
-    return (user, result)
-
-def intersects(dict, list):
-    for f in list:
-        if dict.get(f, -1) != -1:
-            return True
-    return False
-
-def calculate_final_ratings(feats, prod):
-    total = 0
-    intersection = set(feats.keys()).intersection(prod)
-    for f in prod:
-        total = total + feats.get(f, 0)
-    return total / (float(len(intersection)) + 0.5)
-
-#for every test user calculates its model
-#i = 0
+users_tf = test_user_ratings.map(calculate_ratings)
+users_tf.take(5)
+users_final_ratings = users_tf.map(calculate_final_percentages).collect()
+users_final_ratings[:5]
 f = open('submission2.csv', 'wt')
 
 writer = csv.writer(f)
