@@ -50,13 +50,13 @@ UxI= sm.csr_matrix((ratings, (users, items)))
 IxF= sm.csr_matrix((unos, (items_for_features, features)))
 
 
-def calcden(a,b):
+def calcden(a,b, index1, index2):
     denpt1=0
     denpt2=0
-    for t in range(len(a)):
-        if a[t]!=0 and b[t]!=0:
-            denpt1+=np.power(a[t],2)
-            denpt2+=np.power(b[t],2)
+    terms = set(a).intersection(b)
+    for t in terms:
+        denpt1+=np.power(UxI_lil[index1, t],2)
+        denpt2+=np.power(UxI_lil[index2, t],2)
     return np.sqrt(denpt1)*np.sqrt(denpt2)
 
 
@@ -74,16 +74,18 @@ UxU_sim=UxI.dot(UxI.T)
 UxI_lil=UxI.tolil()
 UxU_sim_lil=UxU_sim.tolil()
 nruser=UxU_sim.shape[0]
+nruser
 teta=0
 for i in range(nruser):
     for j in range(nruser):
-        den=(calcden(UxI_lil.getrow(i).toarray()[0],UxI_lil.getrow(j).toarray()[0]))
+        indexes_i = UxI_lil.getrow(i).nonzero()[1]
+        indexes_j = UxI_lil.getrow(j).nonzero()[1]
+        den=(calcden(indexes_i,indexes_j,i,j))
         if den!=0:
             UxU_sim_lil[i,j]/=den
     teta+=1
-    print(teta)        
+    print(teta)
 UxU_sim.setdiag(0)
-
 
 
 
