@@ -119,14 +119,17 @@ def topNRecommendations(user_id,user_sims,users_with_rating,n):
                     sim_sums[neighbor] += sim
 
     # create the normalized list of scored items
-    scored_items = [(total/sim_sums[item],item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
+    #se voglio rating allora + media
+    #users_ratings_mean[user_id]
+    #/sim_sums[item]
+    scored_items = [(total,item) for item,total in totals.items() if sim_sums[item] != 0  and not item in already_voted]
 
     # sort the scored items in ascending order
     scored_items.sort(reverse=True)
 
     # take out the item score
-    ranked_items = [x[1] for x in scored_items]
-    #ranked_items = scored_items
+    #ranked_items = [x[1] for x in scored_items]
+    ranked_items = scored_items
     return user_id,ranked_items[:n]
 
 
@@ -175,7 +178,10 @@ pairwise_users = item_user_pairs.filter(
 
 
 user_sims = pairwise_users.map(
-    lambda p: calcSim(p[0],p[1])).map(
+    lambda p: calcSim(p[0],p[1]))
+user_sims.saveAsTextFile("../users-users-sim.csv")
+
+.map(
     lambda p: keyOnFirstUser(p[0],p[1])).groupByKey().map(
     lambda p: nearestNeighbors(p[0],list(p[1]),50))
 
@@ -192,6 +198,8 @@ uib = sc.broadcast(ui_dict)
 #Calculate the top-N item recommendations for each user user_id -> [item1,item2,item3,...]
 user_item_recs = user_sims.filter(lambda x: x[0] in test_users).map(
     lambda p: topNRecommendations(p[0],p[1],uib.value,5)).sortByKey().collect()
+
+user_item_recs[:100]
 
 recs_dict = dict(user_item_recs)
 
