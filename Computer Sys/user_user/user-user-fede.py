@@ -128,8 +128,8 @@ def topNRecommendations(user_id,user_sims,users_with_rating,n):
     scored_items.sort(reverse=True)
 
     # take out the item score
-    #ranked_items = [x[1] for x in scored_items]
-    ranked_items = scored_items
+    ranked_items = [x[1] for x in scored_items]
+    #ranked_items = scored_items
     return user_id,ranked_items[:n]
 
 
@@ -180,7 +180,7 @@ pairwise_users = item_user_pairs.filter(
 user_sims = pairwise_users.map(
     lambda p: calcSim(p[0],p[1])).map(
     lambda p: keyOnFirstUser(p[0],p[1])).groupByKey().map(
-    lambda p: nearestNeighbors(p[0],list(p[1]),15375))
+    lambda p: nearestNeighbors(p[0],list(p[1]),50))
 
 #Obtain the the item history for each user and store it as a broadcast variable user_id -> [(item_id_1, rating_1), [(item_id_2, rating_2),
 user_item_hist = train_clean_data.map(lambda x: (x[0], (x[1], x[2] - users_ratings_mean[x[0]]))).groupByKey().collect()
@@ -195,9 +195,20 @@ uib = sc.broadcast(ui_dict)
 user_item_recs = user_sims.filter(lambda x: x[0] in test_users).map(
     lambda p: topNRecommendations(p[0],p[1],uib.value,5)).sortByKey().collect()
 
-user_item_recs[:100]
+#user_item_recs[:100]
 
 recs_dict = dict(user_item_recs)
+
+def parseSubmission(line):
+    user, items = line.split(",")
+    items = items.split(" ")
+    return (int(user), [int(item) for item in items])
+
+submission_rdd = sc.textFile("submission.csv")
+submission_header = submission_rdd.first()
+submission_clean_data = submission_rdd.filter(lambda x: x != submission_header).map(parseSubmission).collect()
+#submission_clean_data[:2]
+submission_clean_data_dic = dict(submission_clean_data)
 
 f = open('../submission3.csv', 'wt')
 
@@ -209,12 +220,20 @@ for u in test_users:
     predictions = recs_dict.get(u, [])
     iterator = 0
     already_voted = grouped_rates_dic[u]
+    content_based_items = submission_clean_data_dic[u]
     for i in range(5 - len(predictions)):
-        while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
+        while (content_based_items[iterator] in already_voted) or (content_based_items[iterator] in predictions):
             iterator = iterator + 1
-        predictions = predictions + [item_ratings_mean[iterator]]
+        predictions = predictions + [content_based_items[iterator]]
     writer.writerow((u, '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
     #i+=1
     #print(i)
 
 f.close()
+
+'''
+for i in range(5 - len(predictions)):
+    while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
+        iterator = iterator + 1
+    predictions = predictions + [item_ratings_mean[iterator]]
+'''
