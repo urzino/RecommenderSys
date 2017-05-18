@@ -3,8 +3,9 @@ from scipy import sparse as sm
 from sklearn.preprocessing import normalize
 import numpy as np
 import csv
-from sklearn.metrics.pairwise import cosine_similarity
-from scipy.stats import pearsonr as pears
+#from sklearn.metrics.pairwise import cosine_similarity
+import scipy.spatial as sp
+import sklearn.preprocessing as pp
 sc = SparkContext.getOrCreate()
 
 train_rdd = sc.textFile("data/train.csv")
@@ -57,7 +58,7 @@ def calcden(a,b, index1, index2):
     for t in terms:
         denpt1+=np.power(UxI_lil[index1, t],2)
         denpt2+=np.power(UxI_lil[index2, t],2)
-    return np.sqrt(denpt1)*np.sqrt(denpt2)
+    return np.sqrt(denpt1)*np.sqrt(denpt2)+4
 
 
 
@@ -67,15 +68,23 @@ UxI_norm=normalize(UxI,axis=1)
 IxI_sim=UxI_norm.T.dot(UxI_norm)
 IxI_sim.setdiag(0)
 UxI_pred=UxI.dot(IxI_sim)
+'''
+def cosine_similarities(mat):
+    col_normed_mat = pp.normalize(mat.tocsc(), axis=0)
+    return col_normed_mat.T * col_normed_mat
 
-'''UxI_prep=[[2.5,-1.5,0,-0.5,-0.5],
+
+
+UxI_prep=[[2.5,-1.5,0,-0.5,-0.5],
          [-2.6,1.4,-1.6,1.4,1.4],
          [-1.5,0,-0.5,1.5,0.5],
          [0.25,-0.75,1.25,-0.75,0]]
 
 UxI=sm.csr_matrix(UxI_prep)
-terms = set(UxI.getrow(0).nonzero()[1]).intersection(UxI.getrow(1).nonzero()[1])
-terms'''
+Sim=cosine_similarities(UxI)
+
+Sim.toarray()
+'''
 #tipo 2 user based
 UxU_sim=UxI.dot(UxI.T)
 UxI_lil=UxI.tolil()
@@ -92,11 +101,13 @@ for i in range(nruser):
             UxU_sim_lil[i,j]/=den
     teta+=1
     print(teta)
-UxU_sim.setdiag(0)
+    if teta==10:
+        break
 
 
 
-UxU_sim_lil.toarray()
+
+UxU_sim=UxU_sim_lil.tocsr()
 
 
 #aggiungere di nuovo la media agli UxI tolta prima, o non toglierla e creare un coso tolta poi applicare formulina magica di prima
@@ -104,10 +115,16 @@ for i in users:
     for k in range(UxI.shape[1]):
         UxI.getrow(i)+user_ratings_mean_dic[i]
 
+user_ratings_mean_dic[5]
+UxI.getrow(5).argmax()
+UxI[5,2164]+user_ratings_mean_dic[5]
+
 UxI_pred=UxU_sim.dot(UxI)
 
-UxU_sim.toarray()
-
+tony=UxI_pred.getrow(5).argmax()
+tony
+UxI_pred[5,tony]
+UxI_pred[5,tony]=-50
 
 
 
