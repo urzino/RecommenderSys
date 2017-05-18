@@ -86,6 +86,14 @@ Sim=cosine_similarities(UxI)
 Sim.toarray()
 '''
 #tipo 2 user based
+UxU_sim_dafile=sc.textFile("users-users-sim.csv").map(lambda x: x.replace("(","").replace(")","").replace(" ","").split(",")).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
+us1=UxU_sim_dafile.map(lambda x:x[0]).collect()
+us2=UxU_sim_dafile.map(lambda x:x[1]).collect()
+sims=UxU_sim_dafile.map(lambda x:x[2]).collect()
+UxU_sim= sm.csr_matrix((sims, (us1, us2)))
+
+'''
+#qui si calcola la similarità ma ci mette una cifra, lo facciamo con gli rdd e poi si porta qui :)
 UxU_sim=UxI.dot(UxI.T)
 UxI_lil=UxI.tolil()
 UxU_sim_lil=UxU_sim.tolil()
@@ -108,24 +116,19 @@ for i in range(nruser):
 
 
 UxU_sim=UxU_sim_lil.tocsr()
-
-
-#aggiungere di nuovo la media agli UxI tolta prima, o non toglierla e creare un coso tolta poi applicare formulina magica di prima
-for i in users:
-    for k in range(UxI.shape[1]):
-        UxI.getrow(i)+user_ratings_mean_dic[i]
-
-user_ratings_mean_dic[5]
-UxI.getrow(5).argmax()
-UxI[5,2164]+user_ratings_mean_dic[5]
+'''
 
 UxI_pred=UxU_sim.dot(UxI)
 
-tony=UxI_pred.getrow(5).argmax()
+'''
+#test per verificare se il calcolo del fede funziona
+grouped_rates_dic[8]
+UxI_pred[5,2145]
+tony=UxI_pred.getrow(8).argmax()
 tony
-UxI_pred[5,tony]
-UxI_pred[5,tony]=-50
-
+UxI_pred[8,tony]
+UxI_pred[8,tony]=-50
+'''
 
 
 #3 remake of content-based
