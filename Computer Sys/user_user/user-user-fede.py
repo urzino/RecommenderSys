@@ -112,11 +112,11 @@ def topNRecommendations(user_id,user_sims,users_with_rating,n):
 
         if unscored_items:
             for (item,rating) in unscored_items:
-                if neighbor != item:
+                #if neighbor != item:
 
-                    # update totals and sim_sums with the rating data
-                    totals[neighbor] += sim * rating
-                    sim_sums[neighbor] += sim
+                # update totals and sim_sums with the rating data
+                totals[item] += sim * rating
+                sim_sums[item] += sim
 
     # create the normalized list of scored items
     #se voglio rating allora + media
@@ -178,15 +178,11 @@ pairwise_users = item_user_pairs.filter(
 
 
 user_sims = pairwise_users.map(
-    lambda p: calcSim(p[0],p[1]))
-user_sims.saveAsTextFile("../users-users-sim.csv")
-
-.map(
+    lambda p: calcSim(p[0],p[1])).map(
     lambda p: keyOnFirstUser(p[0],p[1])).groupByKey().map(
-    lambda p: nearestNeighbors(p[0],list(p[1]),50))
+    lambda p: nearestNeighbors(p[0],list(p[1]),15375))
 
 #Obtain the the item history for each user and store it as a broadcast variable user_id -> [(item_id_1, rating_1), [(item_id_2, rating_2),
-
 user_item_hist = train_clean_data.map(lambda x: (x[0], (x[1], x[2] - users_ratings_mean[x[0]]))).groupByKey().collect()
 
 ui_dict = {}
