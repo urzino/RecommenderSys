@@ -1,5 +1,5 @@
 from collections import defaultdict
-from itertools import combinations
+from itertools import combinations, permutations
 import numpy as np
 import random
 import csv
@@ -49,7 +49,7 @@ def findItemPairs(user_id,items_with_rating):
     For each user, find all item-item pairs combos. (i.e. items with the same user)
     '''
     result = list()
-    for item1,item2 in combinations(items_with_rating,2):
+    for item1,item2 in permutations(items_with_rating,2):
         result += [((item1[0],item2[0]),(item1[1],item2[1]))]
     return result
 
@@ -71,7 +71,7 @@ def calcSim(item_pair,rating_pairs):
     cos_sim = cosine(sum_xy,np.sqrt(sum_xx),np.sqrt(sum_yy))
     return item_pair, (cos_sim,n)
 
-shrinkage_factor_cosine = 5
+shrinkage_factor_cosine = 4
 
 def cosine(dot_product,rating_norm_squared,rating2_norm_squared):
     '''
@@ -120,6 +120,22 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
     totals = defaultdict(int)
     sim_sums = defaultdict(int)
     already_voted = grouped_rates_dic[user_id]
+
+    '''
+    items_ratings = dict(items_with_rating)
+    for item in item_sims.keys():
+        nearest_neighbors = item_sims.get(item,None)
+        if nearest_neighbors:
+            for (neighbor,(sim,count)) in nearest_neighbors:
+                rating = items_ratings.get(item, 0)
+                if rating != 0:
+                    totals[neighbor] += sim * rating
+                    sim_sums[neighbor] += sim
+                rating_neighbor = items_ratings.get(neighbor, 0)
+                if rating_neighbor != 0:
+                    totals[item] += sim * rating_neighbor
+                    sim_sums[item] += sim
+    '''
     for (item,rating) in items_with_rating:
 
         # lookup the nearest neighbors for this item
@@ -133,14 +149,15 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
                     sim_sums[neighbor] += sim
 
     # create the normalized list of scored items
-    scored_items = [(total/sim_sums[item],item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
+    #/sim_sums[item]
+    scored_items = [(total,item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
 
     # sort the scored items in ascending order
     scored_items.sort(reverse=True)
 
     # take out the item score
-    #ranked_items = [x[1] for x in scored_items]
-    ranked_items = scored_items
+    ranked_items = [x[1] for x in scored_items]
+    #ranked_items = scored_items
     return user_id,ranked_items[:n]
 
 def find_already_voted(user_predictions, user_rates):
@@ -159,6 +176,7 @@ test_header= test_rdd.first()
 train_clean_data = train_rdd.filter(lambda x: x != train_header).map(parseVector)
 test_clean_data = test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
 features_clean_data = features_ratings_rdd.map(parseFeatures)
+#train_clean_data = sc.parallelize([(1,1,2.5),(1,2,-1.5),(1,4,-0.5),(1,5,-0.5),(2,1,-2.6),(2,2,1.4),(2,3,-1.6),(2,4,1.4),(2,5,1.4),(3,1,-1.5),(3,3,-0.5),(3,4,1.5),(3,5,0.5),(4,1,0.25),(4,2,-0.75),(4,3,1.25),(4,4,-0.75)])
 
 train_clean_data.cache()
 test_clean_data.cache()
@@ -168,6 +186,7 @@ users_ratings = train_clean_data.map(lambda x: (x[0], x[2])).aggregateByKey((0,0
 users_ratings_mean = dict(users_ratings.mapValues(lambda x: (x[0] / x[1])).collect())
 
 test_users=test_clean_data.map( lambda x: int(x[0])).collect()
+#test_users = [1,2,3,4]
 
 grouped_rates = train_clean_data.filter(lambda x: x[0] in test_users).map(lambda x: (x[0],x[1])).groupByKey().map(lambda x: (x[0], list(x[1]))).collect()
 
@@ -179,7 +198,8 @@ item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_f
 
 #Obtain the sparse user-item matrix: user_id -> [(item_id_1, rating_1),  [(item_id_2, rating_2),
 
-user_item_pairs = train_clean_data.map(lambda x: (x[0], (x[1], x[2] - users_ratings_mean[x[0]]))).groupByKey().map(lambda p: sampleInteractions(p[0],list(p[1]),1600)).cache()
+user_item_pairs = train_clean_data.map(lambda x: (x[0], (x[1], x[2] - users_ratings_mean[x[0]]))).groupByKey().map(lambda p: (p[0],list(p[1]))).cache()
+#user_item_pairs = train_clean_data.map(lambda x: (x[0], (x[1], x[2]))).groupByKey().map(lambda p: (p[0],list(p[1]))).cache()
 
 #Get all item-item pair combos: (item1,item2) ->    [(item1_rating,item2_rating),(item1_rating,item2_rating),
 
@@ -191,19 +211,28 @@ pairwise_items = user_item_pairs.filter(
 
 item_sims = pairwise_items.map(
     lambda p: calcSim(p[0],p[1])).map(lambda p: keyOnFirstItem(p[0],p[1])).groupByKey().map(lambda p: nearestNeighbors(p[0],list(p[1]),50)).collect()
-
 #Preprocess the item similarity matrix into a dictionary and store it as a broadcast variable:
-
+#item_sims
 item_sim_dict = {}
 for (item,data) in item_sims:
     item_sim_dict[item] = data
 
 isb = sc.broadcast(item_sim_dict)
-
 #Calculate the top-N item recommendations for each user user_id -> [item1,item2,item3,...]
 
-#user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,500)).sortByKey().collect()
-user_item_recs = train_clean_data.map(lambda x: (x[0], (x[1], x[2]))).groupByKey().filter(lambda x: x[0] in test_users).map(lambda p: sampleInteractions(p[0],list(p[1]),1600))#.map(lambda p: topNRecommendations(p[0],p[1],isb.value,500)).sortByKey().collect()
+#user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,5)).sortByKey().collect()
+user_item_recs = train_clean_data.filter(lambda x: x[0] in test_users).map(lambda x: (x[0], (x[1], x[2]))).groupByKey().map(lambda p: (p[0],list(p[1]))).map(lambda p: topNRecommendations(p[0],p[1],isb.value,5)).sortByKey().collect()
+
+def parseSubmission(line):
+    user, items = line.split(",")
+    items = items.split(" ")
+    return (int(user), [int(item) for item in items])
+
+submission_rdd = sc.textFile("submission.csv")
+submission_header = submission_rdd.first()
+submission_clean_data = submission_rdd.filter(lambda x: x != submission_header).map(parseSubmission).collect()
+#submission_clean_data[:2]
+submission_clean_data_dic = dict(submission_clean_data)
 
 f = open('../submission2.csv', 'wt')
 
@@ -214,10 +243,11 @@ for u in user_item_recs:
     predictions = u[1]
     iterator = 0
     already_voted = grouped_rates_dic[u[0]]
+    content_based_items = submission_clean_data_dic[u]
     for i in range(5 - len(predictions)):
-        while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
+        while (content_based_items[iterator] in already_voted) or (content_based_items[iterator] in predictions):
             iterator = iterator + 1
-        predictions = predictions + [item_ratings_mean[iterator]]
+        predictions = predictions + [content_based_items[iterator]]
     writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
     #i+=1
     #print(i)

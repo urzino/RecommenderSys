@@ -1,5 +1,5 @@
 from collections import defaultdict
-from itertools import combinations
+from itertools import combinations, permutations
 import random
 import numpy as np
 import pdb
@@ -46,7 +46,7 @@ def findUserPairs(item_id,users_with_rating):
     For each item, find all user-user pairs combos. (i.e. users with the same item)
     '''
     result = list()
-    for user1,user2 in combinations(users_with_rating,2):
+    for user1,user2 in permutations(users_with_rating,2):
         result += [((user1[0],user2[0]),(user1[1],user2[1]))]
     return result
 
@@ -122,8 +122,8 @@ def topNRecommendations(user_id,user_sims,users_with_rating,n):
     #se voglio rating allora + media
     #users_ratings_mean[user_id]
     #/sim_sums[item]
-    scored_items = [(total,item) for item,total in totals.items() if sim_sums[item] != 0  and not item in already_voted]
-
+    scored_items = [(total,item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
+    #
     # sort the scored items in ascending order
     scored_items.sort(reverse=True)
 
@@ -164,9 +164,8 @@ item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_f
 
 #Obtain the sparse item-user matrix: item_id -> ((user_1,rating),(user2,rating))
 
-item_user_pairs = train_clean_data.map(lambda x: (x[1], (x[0], x[2] - users_ratings_mean[x[0]]))).groupByKey().map(
-    lambda p: sampleInteractions(p[0],p[1],1600)).cache()
-
+item_user_pairs = train_clean_data.map(lambda x: (x[1], (x[0], x[2] - users_ratings_mean[x[0]]))).groupByKey().map(lambda p: sampleInteractions(p[0],p[1],1700)).cache()
+#item_user_pairs = train_clean_data.map(lambda x: (x[1], (x[0], x[2]))).groupByKey().map(lambda p: sampleInteractions(p[0],p[1],1700)).cache()
 
 #Get all item-item pair combos: (user1_id,user2_id) -> [(rating1,rating2), (rating1,rating2),
 
@@ -184,7 +183,7 @@ user_sims = pairwise_users.map(
 
 #Obtain the the item history for each user and store it as a broadcast variable user_id -> [(item_id_1, rating_1), [(item_id_2, rating_2),
 user_item_hist = train_clean_data.map(lambda x: (x[0], (x[1], x[2] - users_ratings_mean[x[0]]))).groupByKey().collect()
-
+#user_sims.collect()
 ui_dict = {}
 for (user,items) in user_item_hist:
     ui_dict[user] = items
