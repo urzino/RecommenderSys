@@ -61,21 +61,27 @@ def calcden(a,b, index1, index2):
     return np.sqrt(denpt1)*np.sqrt(denpt2)+4
 
 
-
+'''matrici di test'''
 UxI_prep=[[2.5,-1.5,0,-0.5,-0.5],
          [-2.6,1.4,-1.6,1.4,1.4],
          [-1.5,0,-0.5,1.5,0.5],
          [0.25,-0.75,1.25,-0.75,0]]
 
 UxI=sm.csr_matrix(UxI_prep)
+'''end of test'''
 
 
 
 
 
 
+''' -----------------------------tipo 1 item based'''
 
-#tipo 1tem bases
+
+
+
+
+'''calcolo manuale delle similarità'''
 IxI_sim=UxI.T.dot(UxI)
 UxI_lil1=UxI.tolil()
 UxI_lil=UxI_lil1.T
@@ -95,19 +101,34 @@ for i in range(nritem):
     print(teta)
     #if teta==10:
         #break
+
+'''calcolo delle predictions'''
 IxI_sim=IxI_sim_lil.tocsr()
-IxI_sim.toarray()
+IxI_sim.setdiag(0)
 UxI_pred=UxI.dot(IxI_sim)
+
+'''controllo'''
+IxI_sim.toarray()
 UxI_pred.toarray()
-#tipo 2 user based
+
+
+
+
+
+
+
+
+'''-------------------------------------------------tipo 2 user based'''
+
+'''prendo similarità tra utenti già calcolate con rddd'''
 UxU_sim_dafile=sc.textFile("users-users-sim.csv").map(lambda x: x.replace("(","").replace(")","").replace(" ","").split(",")).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
 us1=UxU_sim_dafile.map(lambda x:x[0]).collect()
 us2=UxU_sim_dafile.map(lambda x:x[1]).collect()
 sims=UxU_sim_dafile.map(lambda x:x[2]).collect()
 UxU_sim= sm.csr_matrix((sims, (us1, us2)))
 
-'''
-#qui si calcola la similarità ma ci mette una cifra, lo facciamo con gli rdd e poi si porta qui :)
+
+'''calcolo manuale similarità tra utenti'''
 UxU_sim=UxI.dot(UxI.T)
 UxI_lil=UxI.tolil()
 UxU_sim_lil=UxU_sim.tolil()
@@ -120,20 +141,21 @@ for i in range(nruser):
         indexes_j = UxI_lil.getrow(j).nonzero()[1]
         den=(calcden(indexes_i,indexes_j,i,j))
         if den!=0:
-            UxU_sim_lil[i,j]/=den
+            UxU_sim[i,j]/=den
     teta+=1
     print(teta)
     if teta==10:
         break
 
 
-
-
-UxU_sim=UxU_sim_lil.tocsr()
-'''
-
+'''calcolo delle predictions'''
+UxU_sim.setdiag(0)
 UxI_pred=UxU_sim.dot(UxI)
 
+
+'''controlli'''
+UxU_sim.toarray()
+UxI_pred.toarray()
 '''
 #test per verificare se il calcolo del fede funziona
 grouped_rates_dic[8]
