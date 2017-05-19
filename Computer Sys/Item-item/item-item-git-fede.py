@@ -1,5 +1,5 @@
 from collections import defaultdict
-from itertools import combinations
+from itertools import combinations, permutations
 import numpy as np
 import random
 import csv
@@ -49,7 +49,7 @@ def findItemPairs(user_id,items_with_rating):
     For each user, find all item-item pairs combos. (i.e. items with the same user)
     '''
     result = list()
-    for item1,item2 in combinations(items_with_rating,2):
+    for item1,item2 in permutations(items_with_rating,2):
         result += [((item1[0],item2[0]),(item1[1],item2[1]))]
     return result
 
@@ -120,6 +120,8 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
     totals = defaultdict(int)
     sim_sums = defaultdict(int)
     already_voted = grouped_rates_dic[user_id]
+
+    '''
     items_ratings = dict(items_with_rating)
     for item in item_sims.keys():
         nearest_neighbors = item_sims.get(item,None)
@@ -145,7 +147,7 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
                     # update totals and sim_sums with the rating data
                     totals[neighbor] += sim * rating
                     sim_sums[neighbor] += sim
-    '''
+
     # create the normalized list of scored items
     #/sim_sums[item]
     scored_items = [(total,item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
@@ -154,8 +156,8 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
     scored_items.sort(reverse=True)
 
     # take out the item score
-    #ranked_items = [x[1] for x in scored_items]
-    ranked_items = scored_items
+    ranked_items = [x[1] for x in scored_items]
+    #ranked_items = scored_items
     return user_id,ranked_items[:n]
 
 def find_already_voted(user_predictions, user_rates):
@@ -210,7 +212,7 @@ pairwise_items = user_item_pairs.filter(
 item_sims = pairwise_items.map(
     lambda p: calcSim(p[0],p[1])).map(lambda p: keyOnFirstItem(p[0],p[1])).groupByKey().map(lambda p: nearestNeighbors(p[0],list(p[1]),50)).collect()
 #Preprocess the item similarity matrix into a dictionary and store it as a broadcast variable:
-
+#item_sims
 item_sim_dict = {}
 for (item,data) in item_sims:
     item_sim_dict[item] = data
@@ -218,9 +220,20 @@ for (item,data) in item_sims:
 isb = sc.broadcast(item_sim_dict)
 #Calculate the top-N item recommendations for each user user_id -> [item1,item2,item3,...]
 
-user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,5)).sortByKey().collect()
-#user_item_recs = train_clean_data.map(lambda x: (x[0], (x[1], x[2]))).groupByKey().filter(lambda x: x[0] in test_users).map(lambda p: (p[0],list(p[1]))).map(lambda p: topNRecommendations(p[0],p[1],isb.value,5)).sortByKey().collect()
-user_item_recs
+#user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,5)).sortByKey().collect()
+user_item_recs = train_clean_data.filter(lambda x: x[0] in test_users).map(lambda x: (x[0], (x[1], x[2]))).groupByKey().map(lambda p: (p[0],list(p[1]))).map(lambda p: topNRecommendations(p[0],p[1],isb.value,5)).sortByKey().collect()
+
+def parseSubmission(line):
+    user, items = line.split(",")
+    items = items.split(" ")
+    return (int(user), [int(item) for item in items])
+
+submission_rdd = sc.textFile("submission.csv")
+submission_header = submission_rdd.first()
+submission_clean_data = submission_rdd.filter(lambda x: x != submission_header).map(parseSubmission).collect()
+#submission_clean_data[:2]
+submission_clean_data_dic = dict(submission_clean_data)
+
 f = open('../submission2.csv', 'wt')
 
 writer = csv.writer(f)
@@ -230,10 +243,11 @@ for u in user_item_recs:
     predictions = u[1]
     iterator = 0
     already_voted = grouped_rates_dic[u[0]]
+    content_based_items = submission_clean_data_dic[u]
     for i in range(5 - len(predictions)):
-        while (item_ratings_mean[iterator] in already_voted) or (item_ratings_mean[iterator] in predictions):
+        while (content_based_items[iterator] in already_voted) or (content_based_items[iterator] in predictions):
             iterator = iterator + 1
-        predictions = predictions + [item_ratings_mean[iterator]]
+        predictions = predictions + [content_based_items[iterator]]
     writer.writerow((u[0], '{0} {1} {2} {3} {4}'.format(predictions[0], predictions[1], predictions[2], predictions[3], predictions[4])))
     #i+=1
     #print(i)
