@@ -152,7 +152,6 @@ def find_already_voted(user_predictions, user_rates):
 train_rdd = sc.textFile("../data/train.csv")
 test_rdd= sc.textFile("../data/target_users.csv")
 features_ratings_rdd = sc.textFile("features_rates.csv")
-similarities_rdd = sc.textFile("item-item-sims-fede.csv")
 
 train_header = train_rdd.first()
 test_header= test_rdd.first()
@@ -160,12 +159,10 @@ test_header= test_rdd.first()
 train_clean_data = train_rdd.filter(lambda x: x != train_header).map(parseVector)
 test_clean_data = test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
 features_clean_data = features_ratings_rdd.map(parseFeatures)
-similarities_clean_data = similarities_rdd.map(parseSimilarities)
 
 train_clean_data.cache()
 test_clean_data.cache()
 features_clean_data.cache()
-similarities_clean_data.cache()
 
 users_ratings = train_clean_data.map(lambda x: (x[0], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))
 users_ratings_mean = dict(users_ratings.mapValues(lambda x: (x[0] / x[1])).collect())
@@ -182,7 +179,7 @@ item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_f
 
 #Obtain the sparse user-item matrix: user_id -> [(item_id_1, rating_1),  [(item_id_2, rating_2),
 
-user_item_pairs = train_clean_data.map(lambda x: (x[0], (x[1], x[2] - users_ratings_mean[x[0]]))).groupByKey().map(lambda p: sampleInteractions(p[0],list(p[1]),700)).cache()
+user_item_pairs = train_clean_data.map(lambda x: (x[0], (x[1], x[2] - users_ratings_mean[x[0]]))).groupByKey().map(lambda p: sampleInteractions(p[0],list(p[1]),1600)).cache()
 
 #Get all item-item pair combos: (item1,item2) ->    [(item1_rating,item2_rating),(item1_rating,item2_rating),
 
@@ -205,7 +202,8 @@ isb = sc.broadcast(item_sim_dict)
 
 #Calculate the top-N item recommendations for each user user_id -> [item1,item2,item3,...]
 
-user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,500)).sortByKey().collect()
+#user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,500)).sortByKey().collect()
+user_item_recs = train_clean_data.map(lambda x: (x[0], (x[1], x[2]))).groupByKey().filter(lambda x: x[0] in test_users).map(lambda p: sampleInteractions(p[0],list(p[1]),1600))#.map(lambda p: topNRecommendations(p[0],p[1],isb.value,500)).sortByKey().collect()
 
 f = open('../submission2.csv', 'wt')
 
