@@ -71,7 +71,7 @@ def calcSim(item_pair,rating_pairs):
     cos_sim = cosine(sum_xy,np.sqrt(sum_xx),np.sqrt(sum_yy))
     return item_pair, (cos_sim,n)
 
-shrinkage_factor_cosine = 5
+shrinkage_factor_cosine = 4
 
 def cosine(dot_product,rating_norm_squared,rating2_norm_squared):
     '''
@@ -120,6 +120,20 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
     totals = defaultdict(int)
     sim_sums = defaultdict(int)
     already_voted = grouped_rates_dic[user_id]
+    items_ratings = dict(items_with_rating)
+    for item in item_sims.keys():
+        nearest_neighbors = item_sims.get(item,None)
+        if nearest_neighbors:
+            for (neighbor,(sim,count)) in nearest_neighbors:
+                rating = items_ratings.get(item, 0)
+                if rating != 0:
+                    totals[neighbor] += sim * rating
+                    sim_sums[neighbor] += sim
+                rating_neighbor = items_ratings.get(neighbor, 0)
+                if rating_neighbor != 0:
+                    totals[item] += sim * rating_neighbor
+                    sim_sums[item] += sim
+    '''
     for (item,rating) in items_with_rating:
 
         # lookup the nearest neighbors for this item
@@ -131,9 +145,10 @@ def topNRecommendations(user_id,items_with_rating,item_sims,n):
                     # update totals and sim_sums with the rating data
                     totals[neighbor] += sim * rating
                     sim_sums[neighbor] += sim
-
+    '''
     # create the normalized list of scored items
-    scored_items = [(total/sim_sums[item],item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
+    #/sim_sums[item]
+    scored_items = [(total,item) for item,total in totals.items() if sim_sums[item] != 0 and not item in already_voted]
 
     # sort the scored items in ascending order
     scored_items.sort(reverse=True)
@@ -159,6 +174,7 @@ test_header= test_rdd.first()
 train_clean_data = train_rdd.filter(lambda x: x != train_header).map(parseVector)
 test_clean_data = test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
 features_clean_data = features_ratings_rdd.map(parseFeatures)
+#train_clean_data = sc.parallelize([(1,1,2.5),(1,2,-1.5),(1,4,-0.5),(1,5,-0.5),(2,1,-2.6),(2,2,1.4),(2,3,-1.6),(2,4,1.4),(2,5,1.4),(3,1,-1.5),(3,3,-0.5),(3,4,1.5),(3,5,0.5),(4,1,0.25),(4,2,-0.75),(4,3,1.25),(4,4,-0.75)])
 
 train_clean_data.cache()
 test_clean_data.cache()
@@ -168,6 +184,7 @@ users_ratings = train_clean_data.map(lambda x: (x[0], x[2])).aggregateByKey((0,0
 users_ratings_mean = dict(users_ratings.mapValues(lambda x: (x[0] / x[1])).collect())
 
 test_users=test_clean_data.map( lambda x: int(x[0])).collect()
+#test_users = [1,2,3,4]
 
 grouped_rates = train_clean_data.filter(lambda x: x[0] in test_users).map(lambda x: (x[0],x[1])).groupByKey().map(lambda x: (x[0], list(x[1]))).collect()
 
@@ -179,7 +196,8 @@ item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_f
 
 #Obtain the sparse user-item matrix: user_id -> [(item_id_1, rating_1),  [(item_id_2, rating_2),
 
-user_item_pairs = train_clean_data.map(lambda x: (x[0], (x[1], x[2] - users_ratings_mean[x[0]]))).groupByKey().map(lambda p: sampleInteractions(p[0],list(p[1]),1600)).cache()
+user_item_pairs = train_clean_data.map(lambda x: (x[0], (x[1], x[2] - users_ratings_mean[x[0]]))).groupByKey().map(lambda p: (p[0],list(p[1]))).cache()
+#user_item_pairs = train_clean_data.map(lambda x: (x[0], (x[1], x[2]))).groupByKey().map(lambda p: (p[0],list(p[1]))).cache()
 
 #Get all item-item pair combos: (item1,item2) ->    [(item1_rating,item2_rating),(item1_rating,item2_rating),
 
@@ -191,7 +209,6 @@ pairwise_items = user_item_pairs.filter(
 
 item_sims = pairwise_items.map(
     lambda p: calcSim(p[0],p[1])).map(lambda p: keyOnFirstItem(p[0],p[1])).groupByKey().map(lambda p: nearestNeighbors(p[0],list(p[1]),50)).collect()
-
 #Preprocess the item similarity matrix into a dictionary and store it as a broadcast variable:
 
 item_sim_dict = {}
@@ -199,12 +216,11 @@ for (item,data) in item_sims:
     item_sim_dict[item] = data
 
 isb = sc.broadcast(item_sim_dict)
-
 #Calculate the top-N item recommendations for each user user_id -> [item1,item2,item3,...]
 
-#user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,500)).sortByKey().collect()
-user_item_recs = train_clean_data.map(lambda x: (x[0], (x[1], x[2]))).groupByKey().filter(lambda x: x[0] in test_users).map(lambda p: sampleInteractions(p[0],list(p[1]),1600))#.map(lambda p: topNRecommendations(p[0],p[1],isb.value,500)).sortByKey().collect()
-
+user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,5)).sortByKey().collect()
+#user_item_recs = train_clean_data.map(lambda x: (x[0], (x[1], x[2]))).groupByKey().filter(lambda x: x[0] in test_users).map(lambda p: (p[0],list(p[1]))).map(lambda p: topNRecommendations(p[0],p[1],isb.value,5)).sortByKey().collect()
+user_item_recs
 f = open('../submission2.csv', 'wt')
 
 writer = csv.writer(f)

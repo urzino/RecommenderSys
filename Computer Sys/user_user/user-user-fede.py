@@ -165,7 +165,7 @@ item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_f
 #Obtain the sparse item-user matrix: item_id -> ((user_1,rating),(user2,rating))
 
 item_user_pairs = train_clean_data.map(lambda x: (x[1], (x[0], x[2] - users_ratings_mean[x[0]]))).groupByKey().map(
-    lambda p: sampleInteractions(p[0],p[1],1600)).cache()
+    lambda p: sampleInteractions(p[0],p[1],1700)).cache()
 
 
 #Get all item-item pair combos: (user1_id,user2_id) -> [(rating1,rating2), (rating1,rating2),
