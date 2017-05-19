@@ -62,29 +62,43 @@ def calcden(a,b, index1, index2):
 
 
 
-
-#tipo 1tem bases
-UxI_norm=normalize(UxI,axis=1)
-IxI_sim=UxI_norm.T.dot(UxI_norm)
-IxI_sim.setdiag(0)
-UxI_pred=UxI.dot(IxI_sim)
-'''
-def cosine_similarities(mat):
-    col_normed_mat = pp.normalize(mat.tocsc(), axis=0)
-    return col_normed_mat.T * col_normed_mat
-
-
-
 UxI_prep=[[2.5,-1.5,0,-0.5,-0.5],
          [-2.6,1.4,-1.6,1.4,1.4],
          [-1.5,0,-0.5,1.5,0.5],
          [0.25,-0.75,1.25,-0.75,0]]
 
 UxI=sm.csr_matrix(UxI_prep)
-Sim=cosine_similarities(UxI)
 
-Sim.toarray()
-'''
+
+
+
+
+
+
+#tipo 1tem bases
+IxI_sim=UxI.T.dot(UxI)
+UxI_lil1=UxI.tolil()
+UxI_lil=UxI_lil1.T
+IxI_sim_lil=IxI_sim.tolil()
+nritem=IxI_sim.shape[0]
+
+nritem
+teta=0
+for i in range(nritem):
+    for j in range(nritem):
+        indexes_i = UxI_lil.getrow(i).nonzero()[1]
+        indexes_j = UxI_lil.getrow(j).nonzero()[1]
+        den=(calcden(indexes_i,indexes_j,i,j))
+        if den!=0:
+            IxI_sim_lil[i,j]/=den
+    teta+=1
+    print(teta)
+    #if teta==10:
+        #break
+IxI_sim=IxI_sim_lil.tocsr()
+IxI_sim.toarray()
+UxI_pred=UxI.dot(IxI_sim)
+UxI_pred.toarray()
 #tipo 2 user based
 UxU_sim_dafile=sc.textFile("users-users-sim.csv").map(lambda x: x.replace("(","").replace(")","").replace(" ","").split(",")).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
 us1=UxU_sim_dafile.map(lambda x:x[0]).collect()
