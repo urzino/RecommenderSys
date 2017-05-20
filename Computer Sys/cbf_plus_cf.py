@@ -78,7 +78,8 @@ for i in range(numusers):
     user_avg=UxI_pred_CBF.getrow(i).mean()
     for j in range(numitems):
         UxI_pred_CBF-=(user_avg)
-UxI_pred_CBF.toarray()
+    break
+#UxI_pred_CBF.toarray()
 
 UxU_sim=cosine_similarity(UxI_pred_CBF)
 UxU_sim.setdiag(0)

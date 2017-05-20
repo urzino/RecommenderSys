@@ -1,3 +1,8 @@
+
+# coding: utf-8
+
+# In[35]:
+
 from pyspark import SparkContext
 import csv
 from scipy import linalg, sparse
@@ -9,9 +14,13 @@ from collections import defaultdict
 
 sc = SparkContext.getOrCreate()
 
-train_rdd = sc.textFile("../data/train.csv")
-icm_rdd = sc.textFile("../data/icm_fede.csv")
-test_rdd= sc.textFile("../data/target_users.csv")
+
+# In[36]:
+
+
+train_rdd = sc.textFile("data/train.csv")
+icm_rdd = sc.textFile("data/icm_fede.csv")
+test_rdd= sc.textFile("data/target_users.csv")
 
 train_header = train_rdd.first()
 icm_header = icm_rdd.first()
@@ -20,6 +29,11 @@ test_header= test_rdd.first()
 train_clean_data = train_rdd.filter(lambda x: x != train_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
 icm_clean_data = icm_rdd.filter(lambda x: x != icm_header).map(lambda line: line.split(',')).map(lambda x: (int(x[0]), int(x[1])))
 test_clean_data= test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
+
+
+
+# In[37]:
+
 
 test_users=test_clean_data.map( lambda x: int(x[0])).collect()
 #test_users=[1,2,3,4]
@@ -82,6 +96,17 @@ test_voted_items_dic = dict(test_voted_items)
 test_user_features = grouped_rates.map(lambda x: (x[0], [grouped_features_dic.value.get(item, []) for item, rating in x[1]])).map(lambda x: (x[0], set(reduce(lambda x,y: x+y, x[1]))))
 test_user_features_dic = sc.broadcast(dict(test_user_features.collect()))
 
+
+# In[38]:
+
+print(total_items)
+print(idf_features.value.get(1))
+print(grouped_rates_dic[2])
+
+
+# In[39]:
+
+
 #test_user_features_dic.value
 def calculate_ratings(user_rates):
     user_id = user_rates[0]
@@ -103,6 +128,7 @@ def calculate_user_idf(user_tf):
 
 def calculate_final_percentages(user_tf, n):
     user_id = user_tf[0]
+    print(user_id)
     ratings = user_tf[1]
     items_dict = defaultdict(int)
     already_voted = grouped_rates_dic[user_id]
@@ -117,31 +143,24 @@ def calculate_final_percentages(user_tf, n):
     scored_items.sort(reverse=True)
 
     # take out the item score
-    ranked_items = [x[1] for x in scored_items]
-    #ranked_items = scored_items
+    #ranked_items = [x[1] for x in scored_items]
+    ranked_items = scored_items
+    if n == -1:
+        return user_id,ranked_items
     return user_id,ranked_items[:n]
 
-users_tf = grouped_rates.filter(lambda x: x[0] in test_users).map(calculate_ratings)
-users_tf.take(5)
-users_final_ratings = users_tf.map(calculate_user_idf).map(lambda x: calculate_final_percentages(x, 5)).sortByKey()
-ciao = users_final_ratings.collect()
-ciao[:5]
-len(ciao)
-f = open('submission2.csv', 'wt')
+users_tf = test_user_ratings.filter(lambda x: x[0] in test_users).map(calculate_ratings)
 
+users_final_ratings = users_tf.map(calculate_user_idf).map(lambda x: calculate_final_percentages(x, -1)).collect()
+
+
+f = open('submission2.csv', 'wt')
 writer = csv.writer(f)
 writer.writerow(('userId','RecommendedItemIds'))
 #i = 0
-for u in test_user_ratings.toLocalIterator():
-    user_features_ratings = calculate_features_ratings(u)
-    already_voted = test_user_ratings.filter(lambda y: u[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
-    #.filter(lambda y: u[0] == y[0]).flatMap(lambda x: x[1]).map(lambda x: x[0]).collect()
-    dic_user_f_r = dict(user_features_ratings[1])
-    #print(dic_user_f_r)
-    #remove already voted, calculate products with common features, calculate ratings
-    final_ratings = grouped_features.filter(lambda x: not x[0] in already_voted).filter(lambda x: intersects(dic_user_f_r, x[1])).map(lambda x: (x[0], calculate_final_ratings(dic_user_f_r, x[1])))
-    #predictions = final_ratings.takeOrdered(5, lambda x: -x[1])
-    predictions = final_ratings.sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).take(5)
+for u in users_final_ratings:
+    already_voted = grouped_rates_dic[u[0]]
+    predictions = u[1]
     #.map(lambda x: x[0])
     #max_index = my_list.index(max_value)
     iterator = 0
