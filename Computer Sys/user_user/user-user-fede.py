@@ -76,7 +76,7 @@ def cosine(dot_product,rating_norm_squared,rating2_norm_squared):
        dotProduct(A, B) / (norm(A) * norm(B))
     '''
     numerator = dot_product
-    denominator = rating_norm_squared * rating2_norm_squared + shrinkage_factor_cosine
+    denominator = rating_norm_squared * rating2_norm_squared# + shrinkage_factor_cosine
 
     return (numerator / (float(denominator))) if denominator else 0.0
 
@@ -209,7 +209,7 @@ submission_clean_data = submission_rdd.filter(lambda x: x != submission_header).
 #submission_clean_data[:2]
 submission_clean_data_dic = dict(submission_clean_data)
 
-f = open('../submission3.csv', 'wt')
+f = open('../submission_no_shrinkage.csv', 'wt')
 
 writer = csv.writer(f)
 writer.writerow(('userId','RecommendedItemIds'))
