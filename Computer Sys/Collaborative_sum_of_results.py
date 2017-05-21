@@ -65,19 +65,27 @@ UxF=UxI.dot(IxF_normalized)
 FxI=IxF_normalized.multiply(IDF).T
 UxI_pred_CB=UxF.dot(FxI)
 '''begin of cf user based'''
-UxU_sim_dafile=sc.textFile("users-users-sim.csv").map(lambda x: x.replace("(","").replace(")","").replace(" ","").split(",")).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
+UxU_sim_dafile=sc.textFile("users-users-sims.csv").map(lambda x: x.replace("(","").replace(")","").replace(" ","").split(",")).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
 us1=UxU_sim_dafile.map(lambda x:x[0]).collect()
 us2=UxU_sim_dafile.map(lambda x:x[1]).collect()
-sims=UxU_sim_dafile.map(lambda x:x[2]).collect()
-UxU_sim= sm.csr_matrix((sims, (us1, us2)))
+simsus=UxU_sim_dafile.map(lambda x:x[2]).collect()
+UxU_sim= sm.csr_matrix((simsus, (us1, us2)))
 UxU_sim.setdiag(0)
-UxI_pred_CFU=UxU_sim.dot(UxI)
+UxI_pred_CFU=UxU_sim.dot(UxI_unbiased)
 
+'''begin of cf item based'''
+IxI_sim_dafile=sc.textFile("items-items-sims.csv").map(lambda x: x.replace("(","").replace(")","").replace(" ","").split(",")).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
+it1=IxI_sim_dafile.map(lambda x:x[0]).collect()
+it2=IxI_sim_dafile.map(lambda x:x[1]).collect()
+simsit=IxI_sim_dafile.map(lambda x:x[2]).collect()
+IxI_sim= sm.csr_matrix((simsit, (it1, it2)))
+IxI_sim.setdiag(0)
+UxI_pred_CFI=UxI_unbiased.dot(IxI_sim)
 
 '''summa!'''
 UxI_pred=UxI_pred_CFU+UxI_pred_CB
 
-
+UxI_pred=UxI_pred_CB
 
 
 
