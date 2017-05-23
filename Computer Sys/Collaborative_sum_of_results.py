@@ -82,8 +82,14 @@ IxI_sim= sm.csr_matrix((simsit, (it1, it2)))
 IxI_sim.setdiag(0)
 UxI_pred_CFI=UxI_unbiased.dot(IxI_sim)
 
+
+'''collaborative su items-features'''
+IxI_sim_fromfeatures=IxF_normalized(IxF_normalized.T)
+IxI_sim_fromfeatures.setdiag(0)
+UxI_pred_CFF=UxI.dot(IxI_sim_fromfeatures)
+
 '''summa!'''
-UxI_pred=UxI_pred_CFU+UxI_pred_CB
+UxI_pred=UxI_pred_CB.multiply(1)+UxI_pred_CFU.multiply(1)+UxI_pred_CFI.multiply(1)+UxI_pred_CFF.multiply(1)
 
 UxI_pred=UxI_pred_CB
 
