@@ -104,24 +104,41 @@ def medRank(user,rank1,rank2):
     top=list()
     counterDic = defaultdict(int)
     already_voted=grouped_rates_dic[user]
+    nrRanks=2
+    doR1=True
+    doR2=True
 
     for i in range(len(rank1)):
-        item1=rank1.argmax()
-        item2=rank2.argmax()
-        rank1[item1]=-9
-        rank2[item2]=-9
-        if item1 not in already_voted:
-            counterDic[item1]+=1
-            if counterDic[item1]==2:
-                top+=[item1]
-        if len(top)>=5:
-            break
-        if item2 not in already_voted:
-            counterDic[item2]+=1
-            if counterDic[item2]==2:
-                top+=[item2]
-        if len(top)>=5:
-            break
+        #se non è stato beccato un rating predetto a 0 in questo rank
+        if doR1:
+            #prendi il rating massimo
+            item1=rank1.argmax()
+            #se il rating massimo non è zero
+            if rank1[item1]!=0.0:
+
+                rank1[item1]=-9
+                if item1 not in already_voted:
+                    counterDic[item1]+=1
+                    if counterDic[item1]==nrRanks:
+                        top+=[item1]
+                if len(top)>=5:
+                    break
+            #altrimenti smetti di prendere in considerazione questo rank
+            '''qui sorge il problema che se non viene preso in considerazione un rank bisogna riconsiderare gli item nel dizionario che avevano raggiunto nrRanks
+            -1 nelle iterazioni precedenti prese nell'ordine giusto!... il che è problmatico dato che non sono in ordine di inserimento nel dizionario'''
+            else:
+                doR1=False
+                nrRanks-=1
+
+        if doR2:
+            item2=rank2.argmax()
+            rank2[item2]=-9
+            if item2 not in already_voted:
+                counterDic[item2]+=1
+                if counterDic[item2]==nrRanks:
+                    top+=[item2]
+            if len(top)>=5:
+                break
 
     return top
 
@@ -139,20 +156,13 @@ for user in test_users:
     top=medRank(user,UxI_pred_CB.getrow(user),UxI_pred_CBS.getrow(user))
 
     iterator = 0
-    for i in range(5):
-        prediction = user_predictions.argmax()
-        while prediction in grouped_rates_dic[user] and prediction != 0:
-            user_predictions[0,prediction]=-9
-            prediction=user_predictions.argmax()
-        if prediction == 0:
-            prediction = item_ratings_mean[iterator]
-            while prediction in grouped_rates_dic[user] or prediction in top:
-                iterator += 1
-                prediction = item_ratings_mean[iterator]
-            iterator += 1
-        else:
-            user_predictions[0,prediction]=-9
-        top[i]=prediction
+    for i in range(5 - len(top)):
+        while (item_ratings_mean[iterator] in grouped_rates_dic[user]) or (item_ratings_mean[iterator] in top):
+            iterator = iterator + 1
+        top += [item_ratings_mean[iterator]]
+
+
+
     c+=1
     print(c)
     writer.writerow((user, '{0} {1} {2} {3} {4}'.format(top[0], top[1], top[2], top[3], top[4])))
