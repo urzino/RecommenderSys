@@ -5,7 +5,9 @@ import numpy as np
 import csv
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.stats import pearsonr as pears
+from collections import defaultdict
 sc = SparkContext.getOrCreate()
+
 
 train_rdd = sc.textFile("data/train.csv")
 icm_rdd = sc.textFile("data/icm_fede.csv")
@@ -40,6 +42,7 @@ item_ratings_mean = item_ratings_forTop.mapValues(lambda x: (x[0] / (x[1] + shri
 users = train_clean_data.map(lambda x: x[0]).collect()
 items = train_clean_data.map(lambda x: x[1]).collect()
 ratings = train_clean_data.map(lambda x: x[2]).collect()
+ratings_unbiased = train_clean_data.map(lambda x: x[2]-user_ratings_mean_dic[x[0]]).collect()
 
 items_for_features= icm_clean_data.map(lambda x:x[0]).collect()
 features = icm_clean_data.map(lambda x:x[1]).collect()
@@ -50,65 +53,91 @@ features.append(0)
 unos=[1]*len(items_for_features)
 
 UxI= sm.csr_matrix((ratings, (users, items)))
+UxI_unbiased= sm.csr_matrix((ratings_unbiased, (users, items)))
 IxF= sm.csr_matrix((unos, (items_for_features, features)))
 
-UxI=[[1,-1,0,0,0,1],
-     [-1,1,0,1,0,0]]
-
-
-IxF=[[1,0,1,0,1],
-     [0,1,1,1,0],
-     [0,0,0,1,1],
-     [0,0,1,1,0],
-     [0,1,0,0,0],
-     [1,0,0,1,0]]
-UxI=sm.csr_matrix(UxI)
-IxF=sm.csr_matrix(IxF)
-
-
+'''begin of content based'''
 IxF_normalized=normalize(IxF,axis=1)
 NumItems,NumFeatures=IxF.shape
 NumFeatures
 IDF=[0]*NumFeatures
 for i in range(NumFeatures):
     IDF[i]=np.log10(NumItems/len(IxF.getcol(i).nonzero()[1]))
-
-
-
 UxF=UxI.dot(IxF_normalized)
 FxI=IxF_normalized.multiply(IDF).T
+UxI_pred_CB=UxF.dot(FxI)
 
-UxI_pred=UxF.dot(FxI)
-
-UxI_pred.toarray()
-
-'''method 2'''
+'''contet versione prof'''
 IxF_idf=IxF.multiply(IDF)
 IxI_sim=sm.csr_matrix(cosine_similarity(IxF_idf))
+IxI_sim.setdiag(0)
+UxI_pred_CBS=UxI.dot(normalize(IxI_sim,axis=0,norm='l1' ))
+
+'''begin of cf user based'''
+UxU_sim_dafile=sc.textFile("users-users-sims.csv").map(lambda x: x.replace("(","").replace(")","").replace(" ","").split(",")).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
+us1=UxU_sim_dafile.map(lambda x:x[0]).collect()
+us2=UxU_sim_dafile.map(lambda x:x[1]).collect()
+simsus=UxU_sim_dafile.map(lambda x:x[2]).collect()
+UxU_sim= sm.csr_matrix((simsus, (us1, us2)))
+UxU_sim.setdiag(0)
+UxI_pred_CFU=UxU_sim.dot(UxI_unbiased)
+
+'''begin of cf item based'''
+IxI_sim_dafile=sc.textFile("items-items-sims.csv").map(lambda x: x.replace("(","").replace(")","").replace(" ","").split(",")).map(lambda x: (int(x[0]), int(x[1]), float(x[2])))
+it1=IxI_sim_dafile.map(lambda x:x[0]).collect()
+it2=IxI_sim_dafile.map(lambda x:x[1]).collect()
+simsit=IxI_sim_dafile.map(lambda x:x[2]).collect()
+IxI_sim= sm.csr_matrix((simsit, (it1, it2)))
+IxI_sim.setdiag(0)
+UxI_pred_CFI=UxI_unbiased.dot(IxI_sim)
 
 
-temp=IxF.copy()
-temp.data= np.ones_like(UxI.data)
-counter=temp.dot(temp.T)
-counterAdd=counter.copy()
-counterAdd.data +=1
-counter.data /= counterAdd.data
+'''collaborative su items-features'''
+IxI_sim_fromfeatures=IxF_normalized(IxF_normalized.T)
+IxI_sim_fromfeatures.setdiag(0)
+UxI_pred_CFF=UxI.dot(IxI_sim_fromfeatures)
 
-IxI_sim=IxI_sim.multiply(counter)
+UxI_pred_CB.toarray()
+UxI_pred_CBS.toarray()
 
-UxI_pred2=UxI.dot(normalize(IxI_sim,axis=0,norm='l1' ))
+def medRank(user,rank1,rank2):
+    top=list()
+    counterDic = defaultdict(int)
+    already_voted=grouped_rates_dic[user]
 
-UxI_pred2.tolist()
+    for i in range(len(rank1)):
+        item1=rank1.argmax()
+        item2=rank2.argmax()
+        rank1[item1]=-9
+        rank2[item2]=-9
+        if item1 not in already_voted:
+            counterDic[item1]+=1
+            if counterDic[item1]==2:
+                top+=[item1]
+        if len(top)>=5:
+            break
+        if item2 not in already_voted:
+            counterDic[item2]+=1
+            if counterDic[item2]==2:
+                top+=[item2]
+        if len(top)>=5:
+            break
+
+    return top
+
+
+
+
 
 
 c=0
-f = open('submission_content_based_V2.csv', 'wt')
+f = open('submission_CF_sum.csv', 'wt')
 writer = csv.writer(f)
 writer.writerow(('userId','RecommendedItemIds'))
 for user in test_users:
-    top=[0,0,0,0,0]
 
-    user_predictions=UxI_pred.getrow(user)
+    top=medRank(user,UxI_pred_CB.getrow(user),UxI_pred_CBS.getrow(user))
+
     iterator = 0
     for i in range(5):
         prediction = user_predictions.argmax()
