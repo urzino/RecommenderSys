@@ -91,7 +91,6 @@ IxI_sim= sm.csr_matrix((simsit, (it1, it2)))
 IxI_sim.setdiag(0)
 UxI_pred_CFI=UxI_unbiased.dot(IxI_sim)
 
-
 '''collaborative su items-features'''
 IxI_sim_fromfeatures=IxF_normalized(IxF_normalized.T)
 IxI_sim_fromfeatures.setdiag(0)
@@ -100,9 +99,16 @@ UxI_pred_CFF=UxI.dot(IxI_sim_fromfeatures)
 UxI_pred_CB.toarray()
 UxI_pred_CBS.toarray()
 
+ciao = defaultdict(list)
+ciao[3] = [4]
+ciao[3].pop()
+ciao.keys()
+del ciao[3]
+ciao.keys()
 def medRank(user,rank1,rank2):
     top=list()
     counterDic = defaultdict(int)
+    orderedDic = defaultdict(list)
     already_voted=grouped_rates_dic[user]
     nrRanks=2
     doR1=True
@@ -114,35 +120,59 @@ def medRank(user,rank1,rank2):
             #prendi il rating massimo
             item1=rank1.argmax()
             #se il rating massimo non è zero
-            if rank1[item1]!=0.0:
-
+            if rank1[item1] > 0.0:
                 rank1[item1]=-9
                 if item1 not in already_voted:
+                    count = counterDic[item1]
                     counterDic[item1]+=1
-                    if counterDic[item1]==nrRanks:
+                    if counterDic[item1] >= nrRanks:
                         top+=[item1]
+                        orderedDic[count].remove(item1)
+                    else:
+                        if count > 0:
+                            orderedDic[count].remove(item1)
+                        orderedDic[count + 1] += [item1]
                 if len(top)>=5:
                     break
             #altrimenti smetti di prendere in considerazione questo rank
-            '''qui sorge il problema che se non viene preso in considerazione un rank bisogna riconsiderare gli item nel dizionario che avevano raggiunto nrRanks
-            -1 nelle iterazioni precedenti prese nell'ordine giusto!... il che è problmatico dato che non sono in ordine di inserimento nel dizionario'''
             else:
                 doR1=False
-                nrRanks-=1
+                #nrRanks-=1
 
         if doR2:
             item2=rank2.argmax()
-            rank2[item2]=-9
-            if item2 not in already_voted:
-                counterDic[item2]+=1
-                if counterDic[item2]==nrRanks:
-                    top+=[item2]
-            if len(top)>=5:
-                break
+            if rank2[item2] > 0.0:
+                rank2[item2]=-9
+                if item2 not in already_voted:
+                    count = counterDic[item2]
+                    counterDic[item2]+=1
+                    if counterDic[item2] >= nrRanks:
+                        top+=[item2]
+                        orderedDic[count].remove(item2)
+                    else:
+                        if count > 0:
+                            orderedDic[count].remove(item2)
+                        orderedDic[count + 1] += [item2]
+                if len(top)>=5:
+                    break
+            else:
+                doR2=False
 
+        if not doR1 and not doR2:
+            break
+
+
+    max_rank = max(list(orderedDic.keys()))
+    while len(orderedDic[max_rank]) == 0:
+        del orderedDic[max_rank]
+        max_rank = max(list(orderedDic.keys()))
+
+    for i in range(5 - len(top)):
+        top += orderedDic[max_rank].pop(0)
+        if len(orderedDic[max_rank]) == 0:
+            del orderedDic[max_rank]
+            max_rank = max(list(orderedDic.keys()))
     return top
-
-
 
 
 
