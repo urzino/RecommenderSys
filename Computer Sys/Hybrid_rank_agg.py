@@ -198,3 +198,33 @@ for user in test_users:
     writer.writerow((user, '{0} {1} {2} {3} {4}'.format(top[0], top[1], top[2], top[3], top[4])))
 
 f.close()
+
+
+
+def bordaAggr(rank1,rank2,rank3,rank4):
+    nrItems=UxI.shape[1]
+    result=[0]*nrItems
+    rg=100
+    for i in range(rg):
+        item1=rank1.argmax()
+        item2=rank2.argmax()
+        item3=rank3.argmax()
+        item4=rank4.argmax()
+
+        if rank1[item1]>0.0:
+            result[item1]+=((rg-i)*5.8)
+        rank1[item1]=-9
+
+        if rank2[item2]>0.0:
+            result[item2]+=((rg-i)*3.6)
+        rank2[item2]=-9
+
+        if rank3[item3]>0.0:
+            result[item3]+=((rg-i)*2)
+        rank3[item3]=-9
+
+        if rank4[item4]>0.0:
+            result[item4]+=((rg-i)*1)
+        rank4[item4]=-9
+
+    return sm.csr_matrix(result)
