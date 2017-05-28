@@ -228,3 +228,33 @@ def bordaAggr(rank1,rank2,rank3,rank4):
         rank4[item4]=-9
 
     return sm.csr_matrix(result)
+
+
+c=0
+f = open('submission_borda_100_5.8_3.6_2_1_.csv', 'wt')
+writer = csv.writer(f)
+writer.writerow(('userId','RecommendedItemIds'))
+for user in test_users:
+    top=[0,0,0,0,0]
+
+    user_predictions=bordaAggr(UxI_pred_CB.getrow(user).toarray()[0],UxI_pred_CBS.getrow(user).toarray()[0],UxI_pred_CFU.getrow(user).toarray()[0],UxI_pred_CFI.getrow(user).toarray()[0])
+    iterator = 0
+    for i in range(5):
+        prediction = user_predictions.argmax()
+        while prediction in grouped_rates_dic[user] and prediction != 0:
+            user_predictions[0,prediction]=-9
+            prediction=user_predictions.argmax()
+        if prediction == 0:
+            prediction = item_ratings_mean[iterator]
+            while prediction in grouped_rates_dic[user] or prediction in top:
+                iterator += 1
+                prediction = item_ratings_mean[iterator]
+            iterator += 1
+        else:
+            user_predictions[0,prediction]=-9
+        top[i]=prediction
+    c+=1
+    print(c)
+    writer.writerow((user, '{0} {1} {2} {3} {4}'.format(top[0], top[1], top[2], top[3], top[4])))
+
+f.close()
