@@ -48,29 +48,33 @@ def sampleInteractions(user_id,items_with_rating,n):
     else:
         return user_id, items_with_rating
 
-def findItemPairs(user_id,items_with_rating):
+def findItemPairs(feature_id,items):
     '''
     For each user, find all item-item pairs combos. (i.e. items with the same user)
     '''
     result = list()
-    for item1,item2 in permutations(items_with_rating,2):
-        result += [((item1[0],item2[0]),(item1[1],item2[1]))]
+    for item1,item2 in permutations(items,2):
+        result += [((item1,item2),feature_id)]
     return result
 
-def calcSim(item_pair,rating_pairs):
+def calcSim(item_pair,common_features):
     '''
     For each item-item pair, return the specified similarity measure,
     along with co_raters_count
     '''
     sum_xx, sum_xy, sum_yy, sum_x, sum_y, n = (0.0, 0.0, 0.0, 0.0, 0.0, 0)
 
-    for rating_pair in rating_pairs:
-        sum_xx += np.float(rating_pair[0]) * np.float(rating_pair[0])
-        sum_yy += np.float(rating_pair[1]) * np.float(rating_pair[1])
-        sum_xy += np.float(rating_pair[0]) * np.float(rating_pair[1])
+    item1 = item_pair[0]
+    item2 = item_pair[1]
+
+    n = len(common_features)
+
+    sum_xx = len(item_features_dic.value.get(item1, 0))
+    sum_yy = len(item_features_dic.value.get(item2, 0))
+    sum_xy = n
         # sum_y += rt[1]
         # sum_x += rt[0]
-        n += 1
+
 
     cos_sim = cosine(sum_xy,np.sqrt(sum_xx),np.sqrt(sum_yy))
     return item_pair, (cos_sim,n)
@@ -174,7 +178,6 @@ def find_already_voted(user_predictions, user_rates):
 
 train_rdd = sc.textFile("../data/train.csv")
 test_rdd= sc.textFile("../data/target_users.csv")
-features_ratings_rdd = sc.textFile("features_rates.csv")
 icm_rdd = sc.textFile("../data/icm_fede.csv")
 
 train_header = train_rdd.first()
@@ -183,13 +186,11 @@ icm_header = icm_rdd.first()
 
 train_clean_data = train_rdd.filter(lambda x: x != train_header).map(parseVector)
 test_clean_data = test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
-features_clean_data = features_ratings_rdd.map(parseFeatures)
 icm_clean_data = icm_rdd.filter(lambda x: x != icm_header).map(parse_icm)
 #train_clean_data = sc.parallelize([(1,1,2.5),(1,2,-1.5),(1,4,-0.5),(1,5,-0.5),(2,1,-2.6),(2,2,1.4),(2,3,-1.6),(2,4,1.4),(2,5,1.4),(3,1,-1.5),(3,3,-0.5),(3,4,1.5),(3,5,0.5),(4,1,0.25),(4,2,-0.75),(4,3,1.25),(4,4,-0.75)])
 
 train_clean_data.cache()
 test_clean_data.cache()
-features_clean_data.cache()
 icm_clean_data.cache()
 
 test_users=test_clean_data.map( lambda x: int(x[0])).collect()
@@ -199,25 +200,25 @@ grouped_rates = train_clean_data.filter(lambda x: x[0] in test_users).map(lambda
 grouped_rates_dic = dict(grouped_rates)
 
 item_features = icm_clean_data.groupByKey().map(lambda x: (x[0], list(x[1]))).cache()
-item_features_dic = sc.broadcast(dict(item_features))
+item_features_dic = sc.broadcast(dict(item_features.collect()))
 #for every item all its ratings
 item_ratings = train_clean_data.map(lambda x: (x[1], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))#.sortBy(lambda x: x[1][1], ascending=False)
 shrinkage_factor = 20
 item_ratings_mean = item_ratings.mapValues(lambda x: (x[0] / (x[1] + shrinkage_factor))).sortBy(lambda x: x[1], ascending = False).map(lambda x: x[0]).collect()
 
+grouped_items = icm_clean_data.map(lambda x: (x[1], x[0])).groupByKey().map(lambda x: (x[0], list(x[1]))).cache()
 #Obtain the sparse user-item matrix: user_id -> [(item_id_1, rating_1),  [(item_id_2, rating_2),
 
 #user_item_pairs = train_clean_data.map(lambda x: (x[0], (x[1], x[2]))).groupByKey().map(lambda p: (p[0],list(p[1]))).cache()
 
 #Get all item-item pair combos: (item1,item2) ->    [(item1_rating,item2_rating),(item1_rating,item2_rating),
 
-pairwise_items = item_features.flatMap(
+pairwise_items = grouped_items.flatMap(
     lambda p: findItemPairs(p[0],p[1])).groupByKey()
-
 #Calculate the cosine similarity for each item pair and select the top-N nearest neighbors:(item1,item2) ->    (similarity,co_raters_count)
 
 item_sims = pairwise_items.map(
-    lambda p: calcSim(p[0],p[1])).map(lambda p: keyOnFirstItem(p[0],p[1])).groupByKey().map(lambda p: nearestNeighbors(p[0],list(p[1]),50)).collect()
+    lambda p: calcSim(p[0],list(p[1]))).map(lambda p: keyOnFirstItem(p[0],p[1])).groupByKey().map(lambda p: nearestNeighbors(p[0],list(p[1]),50)).collect()
 #Preprocess the item similarity matrix into a dictionary and store it as a broadcast variable:
 #item_sims
 item_sim_dict = {}
