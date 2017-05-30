@@ -92,7 +92,6 @@ def calculate_content_matrix(train_clean_data, icm_clean_data, test_clean_data):
 
     def calculate_final_percentages(user_tf, n):
         user_id = user_tf[0]
-        print(user_id)
         ratings = user_tf[1]
         items_dict = defaultdict(int)
         already_voted = grouped_rates_dic[user_id]
