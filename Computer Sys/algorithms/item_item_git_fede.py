@@ -6,6 +6,7 @@ import csv
 from pyspark import SparkContext
 
 sc = SparkContext.getOrCreate()
+
 def calculate_item_collaborative_matrix(train_clean_data, test_clean_data):
 
     def parseVector(line):
@@ -169,22 +170,6 @@ def calculate_item_collaborative_matrix(train_clean_data, test_clean_data):
                 return False
         return True
 
-    train_rdd = sc.textFile("../data/train.csv")
-    test_rdd= sc.textFile("../data/target_users.csv")
-    features_ratings_rdd = sc.textFile("features_rates.csv")
-
-    train_header = train_rdd.first()
-    test_header= test_rdd.first()
-
-    train_clean_data = train_rdd.filter(lambda x: x != train_header).map(parseVector)
-    test_clean_data = test_rdd.filter(lambda x: x != test_header).map(lambda line: line.split(','))
-    features_clean_data = features_ratings_rdd.map(parseFeatures)
-    #train_clean_data = sc.parallelize([(1,1,2.5),(1,2,-1.5),(1,4,-0.5),(1,5,-0.5),(2,1,-2.6),(2,2,1.4),(2,3,-1.6),(2,4,1.4),(2,5,1.4),(3,1,-1.5),(3,3,-0.5),(3,4,1.5),(3,5,0.5),(4,1,0.25),(4,2,-0.75),(4,3,1.25),(4,4,-0.75)])
-
-    train_clean_data.cache()
-    test_clean_data.cache()
-    features_clean_data.cache()
-
     users_ratings = train_clean_data.map(lambda x: (x[0], x[2])).aggregateByKey((0,0), lambda x,y: (x[0] + y, x[1] + 1),lambda x,y: (x[0] + y[0], x[1] + y[1]))
     users_ratings_mean = dict(users_ratings.mapValues(lambda x: (x[0] / x[1])).collect())
 
@@ -225,7 +210,7 @@ def calculate_item_collaborative_matrix(train_clean_data, test_clean_data):
 
     #user_item_recs = user_item_pairs.filter(lambda x: x[0] in test_users).map(lambda p: topNRecommendations(p[0],p[1],isb.value,5)).sortByKey().collect()
     return train_clean_data.filter(lambda x: x[0] in test_users).map(lambda x: (x[0], (x[1], x[2]))).groupByKey().map(lambda p: (p[0],list(p[1]))).map(lambda p: topNRecommendations(p[0],p[1],isb.value,-1)).sortByKey()
-
+    
 def print_output():
 
     def parseSubmission(line):
