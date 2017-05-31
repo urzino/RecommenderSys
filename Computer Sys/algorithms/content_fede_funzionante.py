@@ -10,6 +10,7 @@ from collections import defaultdict
 sc = SparkContext.getOrCreate()
 
 def calculate_content_matrix(train_clean_data, icm_clean_data, test_clean_data):
+    
     test_users=test_clean_data.map( lambda x: int(x[0])).collect()
     #test_users=[1,2,3,4]
     #test_users.take(10)
