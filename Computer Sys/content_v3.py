@@ -5,9 +5,7 @@ import numpy as np
 import csv
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.stats import pearsonr as pears
-from collections import defaultdict
 sc = SparkContext.getOrCreate()
-
 
 train_rdd = sc.textFile("data/train.csv")
 icm_rdd = sc.textFile("data/icm_fede.csv")
@@ -42,7 +40,6 @@ item_ratings_mean = item_ratings_forTop.mapValues(lambda x: (x[0] / (x[1] + shri
 users = train_clean_data.map(lambda x: x[0]).collect()
 items = train_clean_data.map(lambda x: x[1]).collect()
 ratings = train_clean_data.map(lambda x: x[2]).collect()
-ratings_unbiased = train_clean_data.map(lambda x: x[2]-user_ratings_mean_dic[x[0]]).collect()
 
 items_for_features= icm_clean_data.map(lambda x:x[0]).collect()
 features = icm_clean_data.map(lambda x:x[1]).collect()
@@ -53,16 +50,30 @@ features.append(0)
 unos=[1]*len(items_for_features)
 
 UxI= sm.csr_matrix((ratings, (users, items)))
-UxI_unbiased= sm.csr_matrix((ratings_unbiased, (users, items)))
 IxF= sm.csr_matrix((unos, (items_for_features, features)))
 
 
-UxU_sim= UxI.dot(UxI.T)
 
+IxF_normalized=normalize(IxF,axis=1)
+NumItems,NumFeatures=IxF.shape
+NumFeatures
+IDF=[0]*NumFeatures
+for i in range(NumFeatures):
+    IDF[i]=np.log10(NumItems/len(IxF.getcol(i).nonzero()[1]))
+
+
+
+UxF=UxI.dot(IxF_normalized).multiply(IDF)
+
+UxU_sim=UxF.dot(UxF.T)
+UxU_sim.setdiag(0)
 UxI_pred=UxU_sim.dot(UxI)
 
+
+
+
 c=0
-f = open('submission_CFUBP.csv', 'wt')
+f = open('submission_content_based_V3.csv', 'wt')
 writer = csv.writer(f)
 writer.writerow(('userId','RecommendedItemIds'))
 for user in test_users:
