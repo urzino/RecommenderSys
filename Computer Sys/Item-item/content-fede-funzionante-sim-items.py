@@ -8,6 +8,7 @@ import csv
 from scipy import linalg, sparse
 import numpy as np
 from itertools import groupby
+from itertools import combinations, permutations
 from functools import reduce
 from operator import itemgetter
 from collections import defaultdict
