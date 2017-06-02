@@ -18,9 +18,9 @@ sc = SparkContext.getOrCreate()
 # In[36]:
 
 
-train_rdd = sc.textFile("data/train.csv")
-icm_rdd = sc.textFile("data/icm_fede.csv")
-test_rdd= sc.textFile("data/target_users.csv")
+train_rdd = sc.textFile("../data/train.csv")
+icm_rdd = sc.textFile("../data/icm_fede.csv")
+test_rdd= sc.textFile("../data/target_users.csv")
 
 train_header = train_rdd.first()
 icm_header = icm_rdd.first()
@@ -48,11 +48,8 @@ total_items = grouped_features.count()
 grouped_features_arr = grouped_features.collect()
 grouped_features_dic = sc.broadcast(dict(grouped_features.collect()))
 
-grouped_features.map(lambda x: (x[0], x[1], 1/ np.sqrt(len(x[1])))).map(lambda x: (x[0], [(item, x[2]) for item in x[1]]))
-
 tf_grouped_features = grouped_features.map(lambda x: (x[0], x[1], 1/ np.sqrt(len(x[1])))).map(lambda x: (x[0], [(item, x[2]) for item in x[1]]))
 tf_grouped_features_dic = sc.broadcast(dict(tf_grouped_features.collect()))
-tf_grouped_features_dic.value.get(11812)
 
 tf_item = tf_grouped_features.map(lambda x: (x[0], x[1][0][1])).collect()
 tf_item_dic = dict(tf_item)
