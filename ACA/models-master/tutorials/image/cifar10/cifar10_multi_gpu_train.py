@@ -257,6 +257,8 @@ def train():
       if step % 1000 == 0 or (step + 1) == FLAGS.max_steps:
         checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
         saver.save(sess, checkpoint_path, global_step=step)
+        if tf.gfile.Exists("/tmp/load"):
+    		tf.gfile.DeleteRecursively("/tmp/load")
         tf.train.write_graph(sess.graph_def, "/tmp/load", "test.pb", False) #proto
 
 def main(argv=None):  # pylint: disable=unused-argument
