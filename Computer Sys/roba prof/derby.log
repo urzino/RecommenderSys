@@ -1,13 +1,13 @@
 ----------------------------------------------------------------
-Wed May 31 11:48:46 CEST 2017:
-Booting Derby version The Apache Software Foundation - Apache Derby - 10.12.1.1 - (1704137): instance a816c00e-015c-5de8-551d-000010fbb108 
-on database directory /Users/federico/Documents/Atom/ProjUrMi/Computer Sys/roba prof/metastore_db with class loader org.apache.spark.sql.hive.client.IsolatedClientLoader$$anon$1@23bce7f8 
-Loaded from file:/Users/federico/Documents/spark-2.1.1/jars/derby-10.12.1.1.jar
+Sun Jun 04 09:14:52 UTC 2017:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.12.1.1 - (1704137): instance a816c00e-015c-7262-bdd0-0000381623a8 
+on database directory /home/ubuntu/ProjUrMi/Computer Sys/roba prof/metastore_db with class loader org.apache.spark.sql.hive.client.IsolatedClientLoader$$anon$1@48e6b200 
+Loaded from file:/home/ubuntu/spark-2.1.1-bin-hadoop2.7/jars/derby-10.12.1.1.jar
 java.vendor=Oracle Corporation
-java.runtime.version=1.8.0_112-b16
-user.dir=/Users/federico/Documents/Atom/ProjUrMi/Computer Sys/roba prof
-os.name=Mac OS X
-os.arch=x86_64
-os.version=10.12.5
+java.runtime.version=1.8.0_131-8u131-b11-0ubuntu1.16.04.2-b11
+user.dir=/home/ubuntu/ProjUrMi/Computer Sys/roba prof
+os.name=Linux
+os.arch=amd64
+os.version=4.4.0-1017-aws
 derby.system.home=null
 Database Class Loader started - derby.database.classpath=''
