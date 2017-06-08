@@ -82,23 +82,6 @@ UxI_pred=UxF.dot(FxI)
 
 UxI_pred.toarray()
 
-'''method 2'''
-IxF_idf=IxF.multiply(IDF)
-IxI_sim=sm.csr_matrix(cosine_similarity(IxF_idf))
-
-
-temp=IxF.copy()
-temp.data= np.ones_like(UxI.data)
-counter=temp.dot(temp.T)
-counterAdd=counter.copy()
-counterAdd.data +=1
-counter.data /= counterAdd.data
-
-IxI_sim=IxI_sim.multiply(counter)
-
-UxI_pred2=UxI.dot(normalize(IxI_sim,axis=0,norm='l1' ))
-
-UxI_pred2.tolist()
 
 
 c=0
