@@ -258,8 +258,8 @@ def train():
         checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
         saver.save(sess, checkpoint_path, global_step=step)
         if tf.gfile.Exists("/tmp/load"):
-            tf.gfile.DeleteRecursively("/tmp/load")
-        tf.train.write_graph(sess.graph_def, "/tmp/load", "test.pb", False) #proto
+        	tf.gfile.DeleteRecursively("/tmp/load")
+        tf.train.write_graph(sess.graph_def, "/tmp/load", "test.pbtxt", True) #proto
 
 def main(argv=None):  # pylint: disable=unused-argument
   cifar10.maybe_download_and_extract()
